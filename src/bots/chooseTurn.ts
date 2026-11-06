@@ -12,7 +12,10 @@ import { removableTiles, validAddPositions } from '../engine/tiles';
 import { deriveRng, randomFloat, randomInt, type RngHolder } from '../engine/rng';
 import type { Action, Figure, GameState, Pos } from '../engine/types';
 import { evaluate } from './evaluate';
+import { chooseRule } from './ruleChoice';
 
+/** Chance to look for a rule when the best plan is to pass. */
+const RULE_CONSIDER_CHANCE = 0.35;
 /** Tile actions must beat passing by this margin, so bots do not reshape the board for nothing. */
 const TILE_ACTION_COST = 0.75;
 /** Only the best move destinations are checked for tile actions (performance). */
@@ -113,6 +116,7 @@ function tileCandidates(after: GameState, me: Figure, path: Pos[]): Candidate[] 
 export function chooseTurn(state: GameState): BotTurn | null {
   const me = currentFigure(state);
   if (!me) return null;
+  if (me.kind === 'npc') return { path: [], action: { type: 'npcAct', actor: me.id } };
   const rng: RngHolder = {
     rng: deriveRng(state.rng, `${me.id}:${state.round}:${state.turn.index}`),
   };
@@ -137,7 +141,21 @@ export function chooseTurn(state: GameState): BotTurn | null {
     }
   }
   const chosen = ties.length > 1 ? (ties[randomInt(rng, ties.length)] ?? best) : best;
+  // Nothing better to do: sometimes look for a rule that helps (SPEC 7, "Regelwahl").
+  if (chosen.action.type === 'pass' && randomFloat(rng) < RULE_CONSIDER_CHANCE) {
+    const afterMove = stateAfterMove(state, me.id, chosen.path);
+    if (afterMove && actionAvailability(afterMove, 'addRule').available) {
+      const ruleAction = chooseRule(afterMove, rng);
+      if (ruleAction) return { path: chosen.path, action: ruleAction };
+    }
+  }
   return { path: chosen.path, action: chosen.action };
+}
+
+function stateAfterMove(state: GameState, actor: string, path: Pos[]): GameState | null {
+  if (state.turn.phase === 'action') return state;
+  const r = applyAction(state, { type: 'move', actor, path });
+  return r.ok && currentFigure(r.state)?.id === actor ? r.state : null;
 }
 
 /** The move action for a bot turn. */

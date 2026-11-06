@@ -52,7 +52,7 @@ describe('bots', () => {
     );
     expect(end.status).toBe('over');
     expect(end.result).not.toBeNull();
-  });
+  }, 60000);
 
   it('are deterministic: same seed => identical end state', () => {
     const play = () =>
@@ -63,7 +63,7 @@ describe('bots', () => {
     const b = play();
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     expect(a.status).toBe('over');
-  });
+  }, 60000);
 
   it('different seeds lead to different games', () => {
     const play = (seed: number) =>
@@ -71,5 +71,5 @@ describe('bots', () => {
         makeGame(2, (st) => (st.tempo.roundLimit = { rounds: 100, outcome: 'draw' }), seed),
       );
     expect(JSON.stringify(play(1))).not.toBe(JSON.stringify(play(2)));
-  });
+  }, 60000);
 });

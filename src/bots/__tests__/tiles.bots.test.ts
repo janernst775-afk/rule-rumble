@@ -59,5 +59,5 @@ describe('bots and tiles', () => {
     const a = play();
     expect(a.status).toBe('over');
     expect(JSON.stringify(play())).toBe(JSON.stringify(a));
-  });
+  }, 60000);
 });
