@@ -14,6 +14,8 @@ export function playBotTurn(state: GameState): GameState {
   }
   const acted = applyAction(s, turn.action);
   if (!acted.ok) throw new Error(`bot action rejected: ${acted.error.code}`);
+  // "Tile actions count double": the same figure may still be in its action phase.
+  if (isSameTurn(s, acted.state)) return playBotTurn(acted.state);
   return acted.state;
 }
 
@@ -22,4 +24,14 @@ export function playBotGame(state: GameState, maxTurns = 5000): GameState {
   let s = state;
   for (let i = 0; i < maxTurns && s.status === 'playing'; i++) s = playBotTurn(s);
   return s;
+}
+
+/** True if the figure that just acted is still on turn (second tile action pending). */
+export function isSameTurn(before: GameState, after: GameState): boolean {
+  return (
+    after.status === 'playing' &&
+    after.round === before.round &&
+    after.turn.index === before.turn.index &&
+    after.turn.phase === 'action'
+  );
 }

@@ -1,10 +1,22 @@
 // Bot turn selection (SPEC 7, difficulty "normal"): try every move × action on a
 // copy of the state via applyAction and pick the best expected score.
 import { applyAction } from '../engine/reducer';
-import { attackTargets, baseWheelChance, currentFigure, moveOptions } from '../engine/query';
+import {
+  actionAvailability,
+  attackTargets,
+  baseWheelChance,
+  currentFigure,
+  moveOptions,
+} from '../engine/query';
+import { removableTiles, validAddPositions } from '../engine/tiles';
 import { deriveRng, randomFloat, randomInt, type RngHolder } from '../engine/rng';
 import type { Action, Figure, GameState, Pos } from '../engine/types';
 import { evaluate } from './evaluate';
+
+/** Tile actions must beat passing by this margin, so bots do not reshape the board for nothing. */
+const TILE_ACTION_COST = 0.75;
+/** Only the best move destinations are checked for tile actions (performance). */
+const TILE_ACTION_MOVES = 3;
 
 /** Chance of a random choice per difficulty (easy/hard become available in v0.8). */
 const RANDOMNESS = { easy: 0.4, normal: 0.15, hard: 0.15 } as const;
@@ -57,8 +69,8 @@ function candidatesFor(state: GameState, me: Figure, rng: RngHolder): Candidate[
       if (moved.ok) afterMoves.push({ path, after: moved.state });
     }
   }
-  for (const { path, after } of afterMoves) {
-    const base = evaluate(after, me.id);
+  const scored = afterMoves.map((m) => ({ ...m, base: evaluate(m.after, me.id) }));
+  for (const { path, after, base } of scored) {
     out.push({ path, action: { type: 'pass', actor: me.id }, score: base });
     const meAfter = after.figures[me.id];
     if (!meAfter) continue;
@@ -73,6 +85,26 @@ function candidatesFor(state: GameState, me: Figure, rng: RngHolder): Candidate[
       const score = p * hitScore + (1 - p) * base + 0.5;
       out.push({ path, action: { type: 'attack', actor: me.id, target: target.id }, score });
     }
+  }
+  const best = [...scored].sort((a, b) => b.base - a.base).slice(0, TILE_ACTION_MOVES);
+  for (const { path, after } of best) out.push(...tileCandidates(after, me, path));
+  return out;
+}
+
+function tileCandidates(after: GameState, me: Figure, path: Pos[]): Candidate[] {
+  const out: Candidate[] = [];
+  const tryAction = (action: Action) => {
+    const result = applyAction(after, action);
+    if (result.ok)
+      out.push({ path, action, score: evaluate(result.state, me.id) - TILE_ACTION_COST });
+  };
+  if (actionAvailability(after, 'addTile').available) {
+    for (const pos of validAddPositions(after)) {
+      tryAction({ type: 'addTile', actor: me.id, pos, textureId: null });
+    }
+  }
+  if (actionAvailability(after, 'removeTile').available) {
+    for (const pos of removableTiles(after)) tryAction({ type: 'removeTile', actor: me.id, pos });
   }
   return out;
 }

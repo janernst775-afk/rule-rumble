@@ -42,7 +42,31 @@ export function evaluateForBoss(state: GameState, bossId: FigureId): number {
   score -= heroes.length * 20;
   const target = weakestHero(state, me.pos);
   if (target) score -= finiteOr(walkDistance(state, me.pos, target.pos), 20) * 3;
+  // Separating the heroes is good for the boss (SPEC 7: "entfernt Felder, um Helden zu trennen").
+  score +=
+    averagePairDistance(
+      state,
+      heroes.map((h) => h.pos),
+    ) * 1.5;
   return score;
+}
+
+function averagePairDistance(state: GameState, positions: Pos[]): number {
+  if (positions.length < 2) return 0;
+  let sum = 0;
+  let pairs = 0;
+  for (let i = 0; i < positions.length; i++) {
+    for (let j = i + 1; j < positions.length; j++) {
+      sum += finiteOr(walkDistance(state, positions[i]!, positions[j]!), 20);
+      pairs++;
+    }
+  }
+  return sum / pairs;
+}
+
+/** Number of tiles reachable within two steps – a measure for escape routes. */
+export function mobility(state: GameState, pos: Pos): number {
+  return reachableTiles(state.tiles, pos, 2).size - 1;
 }
 
 export function evaluateForHero(state: GameState, heroId: FigureId): number {
@@ -55,8 +79,9 @@ export function evaluateForHero(state: GameState, heroId: FigureId): number {
   score += allies.reduce((sum, h) => sum + h.hp, 0) * 2;
   const distBoss = finiteOr(walkDistance(state, me.pos, bossFig.pos), 20);
   if (me.hp <= 1 && allies.length > 0) {
-    // Keep distance while on the last life (SPEC 7).
+    // Keep distance while on the last life and keep escape routes open (SPEC 7).
     score += distBoss * 4;
+    score += mobility(state, me.pos) * 0.6;
   } else {
     score -= distBoss * 3;
     if (allies.length > 0) {
