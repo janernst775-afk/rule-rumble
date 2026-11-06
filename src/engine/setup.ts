@@ -43,7 +43,16 @@ export function validateSetup(seats: readonly SeatSetup[]): SetupError | null {
 }
 
 export function emptyStats(): FigureStats {
-  return { attacks: 0, hits: 0, misses: 0, damageDealt: 0, damageTaken: 0, tilesMoved: 0 };
+  return {
+    attacks: 0,
+    hits: 0,
+    misses: 0,
+    damageDealt: 0,
+    damageTaken: 0,
+    tilesMoved: 0,
+    tilesAdded: 0,
+    tilesRemoved: 0,
+  };
 }
 
 /** Hero start tiles around the top-left corner; the boss starts in the opposite corner. */
@@ -125,7 +134,7 @@ export function createGame(setup: GameSetup): { state: GameState; events: GameEv
     seed: normalizeSeed(setup.seed),
     rng: normalizeSeed(setup.seed),
     round: 0,
-    turn: { order: [], index: 0, phase: 'move' },
+    turn: { order: [], index: 0, phase: 'move', tileActionsUsed: 0 },
     status: 'playing',
     tiles,
     figures,

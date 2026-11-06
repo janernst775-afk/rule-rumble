@@ -5,3 +5,4 @@ export * from './settings';
 export * from './query';
 export * from './setup';
 export { applyAction } from './reducer';
+export * from './tiles';

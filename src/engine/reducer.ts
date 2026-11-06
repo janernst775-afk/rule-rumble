@@ -1,6 +1,7 @@
-import { isValidPath, tileKey, tileLabel } from './board';
+import { createTile, isValidPath, tileKey, tileLabel } from './board';
 import { attackTargets, baseWheelChance, currentFigureId, effectiveMove } from './query';
 import { randomFloat, randomInt } from './rng';
+import { addTileError, removeTileError } from './tiles';
 import { damageFigure, endTurn, log } from './turn';
 import type { Action, ActionError, ApplyResult, GameEvent, GameState } from './types';
 
@@ -60,6 +61,7 @@ export function applyAction(state: GameState, action: Action): ApplyResult {
 
     case 'attack': {
       if (state.turn.phase !== 'action') return fail('wrongPhase');
+      if (state.turn.tileActionsUsed > 0) return fail('tileActionsUsed');
       const target = state.figures[action.target];
       if (!target || !target.alive || target.id === actor.id) return fail('invalidTarget');
       const allowed = attackTargets(state, actor.id).some((f) => f.id === target.id);
@@ -118,7 +120,46 @@ export function applyAction(state: GameState, action: Action): ApplyResult {
     }
 
     case 'addTile':
-    case 'removeTile':
+    case 'removeTile': {
+      if (state.turn.phase !== 'action') return fail('wrongPhase');
+      if (state.turn.tileActionsUsed >= state.settings.board.tileActionsPerAction) {
+        return fail('tileActionsUsed');
+      }
+      const error =
+        action.type === 'addTile'
+          ? addTileError(state, action.pos)
+          : removeTileError(state, action.pos);
+      if (error) return fail(error);
+      const draft = draftOf(state);
+      const events: GameEvent[] = [];
+      const stats = draft.stats[actor.id];
+      if (action.type === 'addTile') {
+        const tile = createTile(action.pos);
+        tile.textureId = action.textureId;
+        draft.tiles[tileKey(action.pos)] = tile;
+        events.push({
+          type: 'tileAdded',
+          figure: actor.id,
+          pos: { ...action.pos },
+          textureId: action.textureId,
+        });
+        if (stats) stats.tilesAdded += 1;
+        log(draft, 'log.tileAdded', { figure: actor.id, tile: tileLabel(draft.tiles, action.pos) });
+      } else {
+        const label = tileLabel(draft.tiles, action.pos);
+        delete draft.tiles[tileKey(action.pos)];
+        events.push({ type: 'tileRemoved', figure: actor.id, pos: { ...action.pos } });
+        if (stats) stats.tilesRemoved += 1;
+        log(draft, 'log.tileRemoved', { figure: actor.id, tile: label });
+      }
+      draft.turn.tileActionsUsed += 1;
+      // With "tile actions count double" the turn stays open for a second tile action or a pass.
+      if (draft.turn.tileActionsUsed >= draft.settings.board.tileActionsPerAction) {
+        endTurn(draft, events);
+      }
+      return { ok: true, state: draft, events };
+    }
+
     case 'addRule':
       return fail('notYetAvailable', action.type);
   }

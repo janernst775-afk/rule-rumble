@@ -25,7 +25,7 @@ function idNumber(id: FigureId): number {
 
 export function startRound(state: GameState, events: GameEvent[]): void {
   state.round += 1;
-  state.turn = { order: buildTurnOrder(state), index: 0, phase: 'move' };
+  state.turn = { order: buildTurnOrder(state), index: 0, phase: 'move', tileActionsUsed: 0 };
   events.push({ type: 'roundStarted', round: state.round });
   log(state, 'log.roundStarted', { round: state.round });
   beginTurnAtIndex(state, events);
@@ -38,6 +38,7 @@ function beginTurnAtIndex(state: GameState, events: GameEvent[]): void {
     const fig = id ? state.figures[id] : undefined;
     if (fig && fig.alive) {
       state.turn.phase = 'move';
+      state.turn.tileActionsUsed = 0;
       events.push({ type: 'turnStarted', figure: fig.id });
       return;
     }

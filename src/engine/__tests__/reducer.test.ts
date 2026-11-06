@@ -96,19 +96,11 @@ describe('turn order and phases', () => {
     expect(s.turn.order).toEqual(['f1', 'f3', 'f4']);
   });
 
-  it('disables tile and rule actions in v0.1', () => {
+  it('keeps rule actions disabled until v0.3', () => {
     const s = run(makeGame(1), stay('f1'));
     expect(errorCode(applyAction(s, { type: 'addRule', actor: 'f1', ruleId: 'x' }))).toBe(
       'notYetAvailable',
     );
-    expect(
-      errorCode(
-        applyAction(s, { type: 'addTile', actor: 'f1', pos: { x: 6, y: 0 }, textureId: null }),
-      ),
-    ).toBe('notYetAvailable');
-    expect(
-      errorCode(applyAction(s, { type: 'removeTile', actor: 'f1', pos: { x: 3, y: 3 } })),
-    ).toBe('notYetAvailable');
   });
 });
 

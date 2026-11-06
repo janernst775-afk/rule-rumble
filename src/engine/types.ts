@@ -141,6 +141,8 @@ export interface FigureStats {
   damageDealt: number;
   damageTaken: number;
   tilesMoved: number;
+  tilesAdded: number;
+  tilesRemoved: number;
 }
 
 export type Winner = 'heroes' | 'boss' | 'draw';
@@ -157,6 +159,8 @@ export interface TurnState {
   order: FigureId[];
   index: number;
   phase: Phase;
+  /** Tile actions already used this turn (Baumeister allows two). */
+  tileActionsUsed: number;
 }
 
 export interface LogEntry {
@@ -209,7 +213,15 @@ export type ActionErrorCode =
   | 'noTarget'
   | 'invalidTarget'
   | 'friendlyFireOff'
-  | 'notYetAvailable';
+  | 'notYetAvailable'
+  | 'tileExists'
+  | 'notAdjacent'
+  | 'maxTiles'
+  | 'noTile'
+  | 'tileOccupied'
+  | 'minTiles'
+  | 'wouldDisconnect'
+  | 'tileActionsUsed';
 
 export interface ActionError {
   code: ActionErrorCode;
@@ -234,6 +246,8 @@ export type GameEvent =
     }
   | { type: 'damaged'; figure: FigureId; amount: number; source: 'attack' | 'rule' }
   | { type: 'died'; figure: FigureId; pos: Pos }
+  | { type: 'tileAdded'; figure: FigureId; pos: Pos; textureId: string | null }
+  | { type: 'tileRemoved'; figure: FigureId; pos: Pos }
   | { type: 'passed'; figure: FigureId }
   | { type: 'turnEnded'; figure: FigureId }
   | { type: 'roundEnded'; round: number }

@@ -1,5 +1,6 @@
 // Read-only helpers over GameState, shared by reducer, bots and UI.
 import { reachableTiles, samePos, tileKey } from './board';
+import { removableTiles, tileCount } from './tiles';
 import type { ActionType, Figure, FigureId, GameState, Percent, Pos, TileKey } from './types';
 
 /** Hard protection limits (SPEC 6.2) – not configurable. */
@@ -89,6 +90,8 @@ export function actionAvailability(state: GameState, type: ActionType): ActionAv
   if (!fig) return { available: false, reason: 'reason.gameOver' };
   switch (type) {
     case 'attack': {
+      if (state.turn.tileActionsUsed > 0)
+        return { available: false, reason: 'reason.tileActionStarted' };
       if (figuresAt(state, fig.pos).length <= 1)
         return { available: false, reason: 'reason.noTarget' };
       if (attackTargets(state, fig.id).length === 0) {
@@ -97,8 +100,23 @@ export function actionAvailability(state: GameState, type: ActionType): ActionAv
       return { available: true };
     }
     case 'addTile':
-    case 'removeTile':
-      return { available: false, reason: 'reason.fromV02' };
+    case 'removeTile': {
+      if (state.turn.tileActionsUsed >= state.settings.board.tileActionsPerAction) {
+        return { available: false, reason: 'reason.tileActionsUsed' };
+      }
+      if (type === 'addTile') {
+        if (tileCount(state) >= state.settings.board.maxTiles) {
+          return { available: false, reason: 'reason.maxTiles' };
+        }
+        return { available: true };
+      }
+      if (tileCount(state) <= state.settings.board.minTiles) {
+        return { available: false, reason: 'reason.minTiles' };
+      }
+      if (removableTiles(state).length === 0)
+        return { available: false, reason: 'reason.noRemovable' };
+      return { available: true };
+    }
     case 'addRule':
       return { available: false, reason: 'reason.fromV03' };
     case 'pass':
