@@ -90,15 +90,15 @@ Reihenfolge ist verbindlich. Jeder Meilenstein endet mit Bericht und Stopp (sieh
 
 **Spec lesen:** 5.1, 5.2, 5.5, 5.6, 6
 
-- [ ] `lang/ast.ts`: Regel-AST (Auslöser, Bedingungen, Effekte, Sonst, Dauer, Limit)
-- [ ] `engine/primitives.ts`: alle Effekte aus SPEC 5.2 als Grundaktionen mit Durchsetzung der Obergrenzen
-- [ ] Event-Bus und `lang/runtime.ts`: Regeln reagieren auf Ereignisse in Hinzufüge-Reihenfolge, Kettentiefe und Effekt-Budget laut SPEC 6
-- [ ] `lang/validator.ts`: Typen, Kontextwerte pro Auslöser, Obergrenzen, „für alle gleich“
-- [ ] Regel-Aktion im Spiel: aus Bibliothek wählen; Aktivierung laut Einstellung; Überlauf-Verhalten laut Einstellung (alle vier Varianten)
-- [ ] NPCs als generische Möglichkeit: eigene Züge in der Zugfolge, Standard-Verhaltensvorlagen
-- [ ] Startbibliothek mit 15–20 Regeln, die die Breite zeigen (höchstens 2 mit NPCs)
-- [ ] Regel-Panel: einklappbar, Regeln anheften, feuernde Regel leuchtet, Ereignis-Toasts
-- [ ] Tests: jede Grundaktion, jede Obergrenze, Kettenreaktionen, Überlauf-Varianten
+- [x] `lang/ast.ts`: Regel-AST (Auslöser, Bedingungen, Effekte, Sonst, Dauer, Limit)
+- [x] `engine/primitives.ts`: alle Effekte aus SPEC 5.2 als Grundaktionen mit Durchsetzung der Obergrenzen
+- [x] Event-Bus und `lang/runtime.ts`: Regeln reagieren auf Ereignisse in Hinzufüge-Reihenfolge, Kettentiefe und Effekt-Budget laut SPEC 6
+- [x] `lang/validator.ts`: Typen, Kontextwerte pro Auslöser, Obergrenzen, „für alle gleich“
+- [x] Regel-Aktion im Spiel: aus Bibliothek wählen; Aktivierung laut Einstellung; Überlauf-Verhalten laut Einstellung (alle vier Varianten)
+- [x] NPCs als generische Möglichkeit: eigene Züge in der Zugfolge, Standard-Verhaltensvorlagen
+- [x] Startbibliothek mit 15–20 Regeln, die die Breite zeigen (höchstens 2 mit NPCs)
+- [x] Regel-Panel: einklappbar, Regeln anheften, feuernde Regel leuchtet, Ereignis-Toasts
+- [x] Tests: jede Grundaktion, jede Obergrenze, Kettenreaktionen, Überlauf-Varianten
 
 **Abnahme:** Alle Startregeln funktionieren im Spiel; keine Regel kann die Grenzen aus Settings überschreiten (Tests).
 

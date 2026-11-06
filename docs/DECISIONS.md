@@ -43,3 +43,29 @@ Abweichungen von der Spec und technische Entscheidungen, neueste unten.
 - **Bots und Felder:** Der Boss bewertet den mittleren Laufweg zwischen den Helden (Trennen), Helden mit 1 Leben ihre Ausweichfelder (Fluchtwege). Feld-Aktionen werden nur für die drei besten Zielfelder geprüft und müssen das Passen um 0,75 Punkte schlagen. Bots legen Felder ohne Textur an.
 - **Brett-Layout:** Die SVG-Fläche umfasst immer den Ring möglicher neuer Felder, damit das Brett beim Wechsel in „Feld +“ nicht springt.
 
+## 2026-11-06 – Planung v0.3 (vom Projektinhaber freigegeben)
+
+- **Überlauf „Abstimmung“:** Alle lebenden Helden und der Boss stimmen ab, NPCs nicht. Mehrheit entscheidet, bei Gleichstand fällt die älteste Regel. Während der Abstimmung ist nur `voteRule` erlaubt, unabhängig davon, wer am Zug ist.
+- **Überlauf „Ersteller wählt“:** Die Aktion `addRule` trägt dann `replaceRuleId`.
+- **„Neue Regel aktiv: sofort“** bleibt als Einstellung erhalten (Widerspruch zu SPEC 6.1); Standard ist „nächste Runde“. Aktive und wartende Regeln zählen beide gegen das Maximum.
+- **Feste Schutzregeln** in `engine/limits.ts`: 3 Effekte (+3 SONST), 1 Schaden/Heilung/Schild pro Effekt, Bewegung 0–3, Rad 25–75 %, Aussetzen 1 Zug, Kettentiefe 3, 50 Effekte pro Zug, Comeback-Ausweichen 50 %. Einstellbar bleiben nur die Werte aus SPEC 2.2.
+- **Startregeln als AST in TypeScript** (`lang/library/startRules.ts`, mit Bau-Helfern in `lang/build.ts`); in v0.4 werden daraus Textdateien mit Round-Trip-Test.
+- **SCHILD** blockt nur Rad-Treffer, keinen Regel-Schaden.
+- **Neuer Kontextwert `von_feld`** (`fromTile`) bei BETRITT/VERLÄSST, damit „Eis rutscht“ die Laufrichtung kennt. Außerdem `figur.feld` (`figureTile`) als Feld-Bezug, z. B. für „Rückstoß“ (`angreifer.feld`).
+- **Effekt-Budget:** Jede ausgeführte Effekt-Zeile zählt 1, egal wie viele Ziele sie trifft.
+- **NPC-Züge** als Engine-Aktion `npcAct`; das Verhalten (verfolgt / wandert / steht / flieht) berechnet die Engine deterministisch. NPCs greifen Helden und Boss an, keine anderen NPCs. Ihr Tod entscheidet das Spiel nicht.
+- **Beschreibungen der Startregeln** stehen in `de.json` (`startRules.*`); andere Regeln bekommen bis zur generierten Erklärung in v0.4 eine Kurzfassung aus Auslöser und Effekten.
+
+## 2026-11-06 – Umsetzung v0.3
+
+- **Event-Bus statt Ereignisliste:** Alle Engine-Funktionen senden Ereignisse über `emit(bus, event)`; die Runtime reagiert sofort darauf (Kettenreaktion = verschachtelter Aufruf mit `bus.depth`). `createGame`, Reducer und Zugablauf laufen alle über den Bus.
+- **Bewegung, Schieben und Teleport** laufen über `movement.stepFigure` und senden VERLÄSST/BETRITT pro Schritt. Wird eine Figur unterwegs geschoben, getötet oder teleportiert, endet der restliche Weg.
+- **Siegprüfung** nach jeder Aktion und an Zug-/Rundengrenzen, damit Regeln das Spiel mitten im Zug entscheiden können; „letzter Held und Boss im selben Effekt“ ergibt Unentschieden (getestet).
+- **Regel-Schaden** zählt pro Figur und Runde (`ruleDamage`), Angriffe zählen nicht. Spawns zählen pro Runde (`spawnsThisRound`). Beides wird zu Rundenbeginn zurückgesetzt.
+- **AUSSETZEN** verbraucht den Zug zu Zugbeginn (ohne ZUGSTART-Auslöser) und setzt eine Sperre, die bis zum Ende des nächsten normalen Zugs hält.
+- **Textur-Namen** stehen jetzt im Spielzustand (`textureNames`), die Aktion `addTile` trägt den Namen mit. Regeln vergleichen Texte ohne Groß-/Kleinschreibung.
+- **Variablen** sind Zahlen, Namen klein geschrieben; Identitätsnamen wie `rolle`, `name`, `ersteller` lehnt der Validator ab.
+- **Regelwahl der Bots:** Nur wenn der beste Plan „Passen“ wäre, mit 35 % Chance; 5 zufällige passende Bibliotheksregeln werden mit 2 Runden Vorausschau (schnelle Zugstrategie) gegen „ohne Regel“ verglichen, Mindestgewinn 1,5 Punkte. Bots stimmen für die älteste Regel eines anderen Erstellers.
+- **Regel-Bibliothek** in `localStorage` (`rr.library`): jede gespielte Regel wird gespeichert; Import/Export als JSON (`rule-rumble/rules`, Version 1); importierte Regeln werden gegen die Standard-Einstellungen geprüft, ungültige abgelehnt. Erreichbar über „Bibliothek“ auf dem Startbildschirm.
+- **Anheften** merkt sich die Bibliotheks-ID der Regel (bleibt über Spiele hinweg erhalten).
+
