@@ -72,15 +72,15 @@ Reihenfolge ist verbindlich. Jeder Meilenstein endet mit Bericht und Stopp (sieh
 
 **Spec lesen:** 3 (Aktionen), 4, 4.1, 8.1
 
-- [ ] Aktion Feld hinzufügen: gestrichelte Platzhalter an gültigen Positionen, Grenzen aus Settings
-- [ ] Aktion Feld entfernen: nur leere Felder, Zusammenhang muss erhalten bleiben, ungültige Felder mit Grund ausgegraut
-- [ ] Dialog „Feld anlegen“ laut Referenz mit drei Reitern: Zeichnen, Bild hochladen, Meine Texturen
-- [ ] Malprogramm (Canvas 128 × 128): Pinsel in 3 Größen, Radierer, Fülleimer, Pipette, 16 Farben + eigene, Rückgängig/Wiederholen, Raster, Nahtlos-Vorschau 3 × 3
-- [ ] Bild-Upload mit quadratischem Zuschnitt und Zoom, Ausgabe 128 × 128 PNG
-- [ ] Textur hat einen Namen; Textur-Bibliothek in IndexedDB (`idb`), im Spielzustand nur eine Textur-ID
-- [ ] Einstellung „Eigene Texturen aus“ ⇒ einfarbige Felder
-- [ ] Bots nutzen Feld-Aktionen sinnvoll (Fluchtwege, Helden trennen)
-- [ ] Tests: Platzierung, Entfernen, Zusammenhang, Min/Max-Grenzen
+- [x] Aktion Feld hinzufügen: gestrichelte Platzhalter an gültigen Positionen, Grenzen aus Settings
+- [x] Aktion Feld entfernen: nur leere Felder, Zusammenhang muss erhalten bleiben, ungültige Felder mit Grund ausgegraut
+- [x] Dialog „Feld anlegen“ laut Referenz mit drei Reitern: Zeichnen, Bild hochladen, Meine Texturen
+- [x] Malprogramm (Canvas 128 × 128): Pinsel in 3 Größen, Radierer, Fülleimer, Pipette, 16 Farben + eigene, Rückgängig/Wiederholen, Raster, Nahtlos-Vorschau 3 × 3
+- [x] Bild-Upload mit quadratischem Zuschnitt und Zoom, Ausgabe 128 × 128 PNG
+- [x] Textur hat einen Namen; Textur-Bibliothek in IndexedDB (`idb`), im Spielzustand nur eine Textur-ID
+- [x] Einstellung „Eigene Texturen aus“ ⇒ einfarbige Felder
+- [x] Bots nutzen Feld-Aktionen sinnvoll (Fluchtwege, Helden trennen)
+- [x] Tests: Platzierung, Entfernen, Zusammenhang, Min/Max-Grenzen
 
 **Abnahme:** Ein Feld mit selbst gezeichneter Textur lässt sich anlegen, erscheint im Spiel und in der Bibliothek, und ein Feld lässt sich nicht entfernen, wenn das Brett sonst zerfällt.
 

@@ -29,3 +29,17 @@ Abweichungen von der Spec und technische Entscheidungen, neueste unten.
 - **Grenzregel-Durchsetzung per ESLint:** `src/engine`, `src/bots`, `src/lobby`, `src/lang` dürfen weder React/Zustand/i18next noch `window`, `document`, `localStorage`, `Date`, `Math.random` usw. verwenden. Testdateien sind ausgenommen.
 - **Prettier formatiert keine Markdown-Dateien** (`docs/`, `*.md` in `.prettierignore`), damit Spec und Meilensteine unverändert bleiben.
 - **Fehlende Englisch-Texte** fallen auf Deutsch zurück (`fallbackLng: 'de'`).
+
+## 2026-11-06 – Umsetzung v0.2
+
+- **Baumeister („Feld-Aktionen zählen doppelt“)** = `board.tileActionsPerAction: 2`: Nach einer Feld-Aktion bleibt der Zug offen für eine zweite (Feld + oder Feld −) oder Passen. Angreifen ist nach einer Feld-Aktion nicht mehr möglich.
+- **Neue Ereignisse** `tileAdded` / `tileRemoved` (für `FELD_NEU` / `FELD_WEG` ab v0.3) und Statistik `tilesAdded` / `tilesRemoved`. Die Prüfungen liegen in `engine/tiles.ts`; v0.3 ruft sie aus `primitives.ts` auf.
+- **Figuren blockieren das Entfernen** nur, wenn sie leben; ein Feld, auf dem nur eine tote Figur lag, darf weg.
+- **Texturen werden immer in IndexedDB gespeichert**, auch ohne Haken „In meine Textur-Bibliothek“ (`inLibrary: false`), damit Felder im laufenden Spiel ihr Bild behalten. „Aus der Bibliothek entfernen“ blendet nur aus, statt zu löschen.
+- **Textur-Namen liegen noch nicht im Spielzustand** (nur `textureId` am Feld). Für `feld.textur = "Sumpf"` in v0.3 braucht die Engine den Namen: geplant ist ein Register `GameState.textures: Record<id, name>`, das beim Anlegen gefüllt wird.
+- **Leeres Bild = einfarbiges Feld:** Ohne Zeichnung oder Upload legt „Feld anlegen“ ein Feld ohne Textur an; der Name ist dann nicht nötig.
+- **Malprogramm:** 128 × 128 Canvas, 3-fach vergrößert mit `image-rendering: pixelated`; quadratischer Pinsel 2/5/10 px, Radierer macht transparent, Fülleimer = 4-Wege-Scanline-Fill (`assets/paint/raster.ts`, getestet), Rückgängig bis 40 Schritte, Raster alle 8 px.
+- **Bild-Zuschnitt verallgemeinert** (`ImageCropper`): Kreis für Avatare (256 px), Quadrat für Texturen (128 px). Dabei behoben: Unter React StrictMode wurde die Bild-URL im Dev-Modus vor dem Laden widerrufen, der Avatar-Upload aus v0.1 funktionierte dort nicht.
+- **Bots und Felder:** Der Boss bewertet den mittleren Laufweg zwischen den Helden (Trennen), Helden mit 1 Leben ihre Ausweichfelder (Fluchtwege). Feld-Aktionen werden nur für die drei besten Zielfelder geprüft und müssen das Passen um 0,75 Punkte schlagen. Bots legen Felder ohne Textur an.
+- **Brett-Layout:** Die SVG-Fläche umfasst immer den Ring möglicher neuer Felder, damit das Brett beim Wechsel in „Feld +“ nicht springt.
+
