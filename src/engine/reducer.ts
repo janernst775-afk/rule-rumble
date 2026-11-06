@@ -1,17 +1,22 @@
 import { createTile, isValidPath, tileKey, tileLabel } from './board';
-import { attackTargets, baseWheelChance, currentFigureId, effectiveMove } from './query';
-import { randomFloat, randomInt } from './rng';
+import { createBus, emit, type Bus } from './bus';
+import { resolveAttack } from './combat';
+import { walkPath } from './movement';
+import { npcTurn } from './npc';
+import { attackTargets, currentFigureId, effectiveMove } from './query';
+import { addRule, addRuleError, castVote, voteError } from './rules';
 import { addTileError, removeTileError } from './tiles';
-import { damageFigure, endTurn, log } from './turn';
-import type { Action, ActionError, ApplyResult, GameEvent, GameState } from './types';
+import { checkVictory, endTurn, log } from './turn';
+import type { Action, ActionError, ApplyResult, GameState } from './types';
 
 function fail(code: ActionError['code'], detail?: string): ApplyResult {
   return { ok: false, error: detail === undefined ? { code } : { code, detail } };
 }
 
 /**
- * Copies every part of the state that a reducer may mutate. Settings and
- * participants are never mutated by the engine and are shared.
+ * Copies every part of the state that a reducer may mutate. Settings and existing
+ * participants are never mutated; the participants record is copied because
+ * spawned NPCs add entries.
  */
 function draftOf(state: GameState): GameState {
   return {
@@ -19,11 +24,21 @@ function draftOf(state: GameState): GameState {
     turn: { ...state.turn, order: [...state.turn.order] },
     tiles: structuredClone(state.tiles),
     figures: structuredClone(state.figures),
+    participants: { ...state.participants },
     rules: structuredClone(state.rules),
+    pendingVote: state.pendingVote ? structuredClone(state.pendingVote) : null,
+    ruleDamage: { ...state.ruleDamage },
+    textureNames: { ...state.textureNames },
     world: { ...state.world },
     stats: structuredClone(state.stats),
     log: [...state.log],
   };
+}
+
+function done(bus: Bus): ApplyResult {
+  // Rules may have decided the game in the middle of an action.
+  if (bus.state.status === 'playing') checkVictory(bus);
+  return { ok: true, state: bus.state, events: bus.events };
 }
 
 /** The single entry point of the engine: state + action → new state + events. */
@@ -31,32 +46,48 @@ export function applyAction(state: GameState, action: Action): ApplyResult {
   if (state.status === 'over') return fail('gameOver');
   const actor = state.figures[action.actor];
   if (!actor) return fail('unknownFigure', action.actor);
+
+  // Votes are cast by every voter, independent of whose turn it is.
+  if (state.pendingVote) {
+    if (action.type !== 'voteRule') return fail('votePending');
+    const error = voteError(state, action.actor, action.ruleId);
+    if (error) return fail(error);
+    const bus = createBus(draftOf(state));
+    castVote(bus, action.actor, action.ruleId);
+    return done(bus);
+  }
+  if (action.type === 'voteRule') return fail('noVote');
+
   if (currentFigureId(state) !== action.actor) return fail('notYourTurn');
+  if (actor.kind === 'npc' && action.type !== 'npcAct') return fail('npcActsAlone');
 
   switch (action.type) {
+    case 'npcAct': {
+      if (actor.kind !== 'npc') return fail('notNpc');
+      const bus = createBus(draftOf(state));
+      const npc = bus.state.figures[actor.id];
+      if (npc) npcTurn(bus, npc);
+      return done(bus);
+    }
+
     case 'move': {
       if (state.turn.phase !== 'move') return fail('wrongPhase');
       if (action.path.length > effectiveMove(actor)) return fail('pathTooLong');
       if (!isValidPath(state.tiles, actor.pos, action.path)) return fail('invalidPath');
-      const draft = draftOf(state);
-      const events: GameEvent[] = [];
+      const bus = createBus(draftOf(state));
+      const draft = bus.state;
+      const steps = walkPath(bus, actor.id, action.path);
       const fig = draft.figures[actor.id];
-      if (!fig) return fail('unknownFigure');
-      for (const step of action.path) {
-        events.push({ type: 'tileLeft', figure: fig.id, pos: { ...fig.pos } });
-        fig.pos = { ...step };
-        const tile = draft.tiles[tileKey(step)];
-        const firstVisit = tile ? !tile.visitedBy.includes(fig.id) : false;
-        if (tile && firstVisit) tile.visitedBy.push(fig.id);
-        events.push({ type: 'tileEntered', figure: fig.id, pos: { ...step }, firstVisit });
+      const stats = draft.stats[actor.id];
+      if (stats) stats.tilesMoved += steps;
+      if (steps > 0 && fig) {
+        log(draft, 'log.moved', { figure: actor.id, tile: tileLabel(draft.tiles, fig.pos) });
       }
-      const stats = draft.stats[fig.id];
-      if (stats) stats.tilesMoved += action.path.length;
-      if (action.path.length > 0) {
-        log(draft, 'log.moved', { figure: fig.id, tile: tileLabel(draft.tiles, fig.pos) });
-      }
-      draft.turn.phase = 'action';
-      return { ok: true, state: draft, events };
+      if (draft.status !== 'playing') return done(bus);
+      // A rule may have knocked the mover out during the walk.
+      if (!fig || !fig.alive) endTurn(bus);
+      else draft.turn.phase = 'action';
+      return done(bus);
     }
 
     case 'attack': {
@@ -69,54 +100,18 @@ export function applyAction(state: GameState, action: Action): ApplyResult {
         const sameTile = target.pos.x === actor.pos.x && target.pos.y === actor.pos.y;
         return fail(sameTile ? 'friendlyFireOff' : 'noTarget');
       }
-      const draft = draftOf(state);
-      const events: GameEvent[] = [];
-      const spread = draft.settings.combat.wheelChanceSpread;
-      const base = baseWheelChance(draft, actor);
-      const chance =
-        spread > 0
-          ? Math.min(100, Math.max(0, base - spread + randomInt(draft, spread * 2 + 1)))
-          : base;
-      events.push({ type: 'attackDeclared', attacker: actor.id, target: target.id, chance });
-      const roll = randomFloat(draft) * 100;
-      const hit = roll < chance;
-      events.push({
-        type: 'wheelResolved',
-        attacker: actor.id,
-        target: target.id,
-        chance,
-        roll,
-        hit,
-      });
-      const stats = draft.stats[actor.id];
-      if (stats) {
-        stats.attacks += 1;
-        if (hit) stats.hits += 1;
-        else stats.misses += 1;
-      }
-      log(draft, hit ? 'log.hit' : 'log.miss', { attacker: actor.id, target: target.id, chance });
-      if (hit) {
-        const targetDraft = draft.figures[target.id];
-        const shieldIdx = targetDraft
-          ? targetDraft.statuses.findIndex((s) => s.kind === 'shield')
-          : -1;
-        if (targetDraft && shieldIdx >= 0) {
-          targetDraft.statuses.splice(shieldIdx, 1);
-          log(draft, 'log.shieldBlocked', { figure: target.id });
-        } else {
-          damageFigure(draft, events, target.id, 1, 'attack', actor.id);
-        }
-      }
-      endTurn(draft, events);
-      return { ok: true, state: draft, events };
+      const bus = createBus(draftOf(state));
+      resolveAttack(bus, actor.id, target.id);
+      if (bus.state.status === 'playing') endTurn(bus);
+      return done(bus);
     }
 
     case 'pass': {
-      const draft = draftOf(state);
-      const events: GameEvent[] = [{ type: 'passed', figure: actor.id }];
-      log(draft, 'log.passed', { figure: actor.id });
-      endTurn(draft, events);
-      return { ok: true, state: draft, events };
+      const bus = createBus(draftOf(state));
+      log(bus.state, 'log.passed', { figure: actor.id });
+      emit(bus, { type: 'passed', figure: actor.id });
+      if (bus.state.status === 'playing') endTurn(bus);
+      return done(bus);
     }
 
     case 'addTile':
@@ -130,37 +125,49 @@ export function applyAction(state: GameState, action: Action): ApplyResult {
           ? addTileError(state, action.pos)
           : removeTileError(state, action.pos);
       if (error) return fail(error);
-      const draft = draftOf(state);
-      const events: GameEvent[] = [];
+      const bus = createBus(draftOf(state));
+      const draft = bus.state;
       const stats = draft.stats[actor.id];
+      draft.turn.tileActionsUsed += 1;
       if (action.type === 'addTile') {
         const tile = createTile(action.pos);
         tile.textureId = action.textureId;
         draft.tiles[tileKey(action.pos)] = tile;
-        events.push({
+        if (action.textureId && action.textureName) {
+          draft.textureNames[action.textureId] = action.textureName.slice(0, 30);
+        }
+        if (stats) stats.tilesAdded += 1;
+        log(draft, 'log.tileAdded', { figure: actor.id, tile: tileLabel(draft.tiles, action.pos) });
+        emit(bus, {
           type: 'tileAdded',
           figure: actor.id,
           pos: { ...action.pos },
           textureId: action.textureId,
         });
-        if (stats) stats.tilesAdded += 1;
-        log(draft, 'log.tileAdded', { figure: actor.id, tile: tileLabel(draft.tiles, action.pos) });
       } else {
         const label = tileLabel(draft.tiles, action.pos);
         delete draft.tiles[tileKey(action.pos)];
-        events.push({ type: 'tileRemoved', figure: actor.id, pos: { ...action.pos } });
         if (stats) stats.tilesRemoved += 1;
         log(draft, 'log.tileRemoved', { figure: actor.id, tile: label });
+        emit(bus, { type: 'tileRemoved', figure: actor.id, pos: { ...action.pos } });
       }
-      draft.turn.tileActionsUsed += 1;
+      if (draft.status !== 'playing') return done(bus);
       // With "tile actions count double" the turn stays open for a second tile action or a pass.
-      if (draft.turn.tileActionsUsed >= draft.settings.board.tileActionsPerAction) {
-        endTurn(draft, events);
+      const me = draft.figures[actor.id];
+      if (!me?.alive || draft.turn.tileActionsUsed >= draft.settings.board.tileActionsPerAction) {
+        endTurn(bus);
       }
-      return { ok: true, state: draft, events };
+      return done(bus);
     }
 
-    case 'addRule':
-      return fail('notYetAvailable', action.type);
+    case 'addRule': {
+      if (state.turn.phase !== 'action') return fail('wrongPhase');
+      if (state.turn.tileActionsUsed > 0) return fail('tileActionsUsed');
+      const error = addRuleError(state, action.rule, action.replaceRuleId);
+      if (error) return fail(error);
+      const bus = createBus(draftOf(state));
+      addRule(bus, actor.id, action.rule, action.replaceRuleId);
+      return done(bus);
+    }
   }
 }

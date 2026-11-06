@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { applyAction } from '../reducer';
 import { currentFigureId } from '../query';
 import { checkVictory } from '../turn';
-import type { Action, ApplyResult, GameEvent, GameState } from '../types';
+import { createBus } from '../bus';
+import type { Action, ApplyResult, GameState } from '../types';
 import { makeGame, place, setHp } from './helpers';
 
 function ok(result: ApplyResult): GameState {
@@ -94,13 +95,6 @@ describe('turn order and phases', () => {
     let s = kill(makeGame(3), 'f2');
     s = run(s, pass('f1'), pass('f3'), pass('f4'));
     expect(s.turn.order).toEqual(['f1', 'f3', 'f4']);
-  });
-
-  it('keeps rule actions disabled until v0.3', () => {
-    const s = run(makeGame(1), stay('f1'));
-    expect(errorCode(applyAction(s, { type: 'addRule', actor: 'f1', ruleId: 'x' }))).toBe(
-      'notYetAvailable',
-    );
   });
 });
 
@@ -275,13 +269,12 @@ describe('death and victory', () => {
   });
 
   it('ends in a draw when the last hero and the boss die together', () => {
-    // Not reachable through attacks in v0.1 (rules come in v0.3); checks the victory logic directly.
+    // Checks the victory logic directly; a rule-based scenario lives in rules.test.ts.
     const s = kill(kill(makeGame(1), 'f1'), 'f2');
-    const draft: GameState = { ...s, log: [...s.log] };
-    const events: GameEvent[] = [];
-    expect(checkVictory(draft, events)).toBe(true);
-    expect(draft.result?.winner).toBe('draw');
-    expect(events.at(-1)?.type).toBe('gameOver');
+    const bus = createBus({ ...s, log: [...s.log] });
+    expect(checkVictory(bus)).toBe(true);
+    expect(bus.state.result?.winner).toBe('draw');
+    expect(bus.events.at(-1)?.type).toBe('gameOver');
   });
 
   it('applies the round limit with the configured outcome', () => {

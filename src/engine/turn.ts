@@ -1,5 +1,7 @@
-// Mutating helpers that operate on a reducer draft (never on a shared state).
-import type { Figure, FigureId, GameEvent, GameResult, GameState, LogEntry } from './types';
+// Round and turn flow. All helpers mutate a reducer draft through the bus.
+import { emit, type Bus } from './bus';
+import { activateRules, expireRules } from './rules';
+import type { Figure, FigureId, GameResult, GameState, LogEntry } from './types';
 
 export function log(state: GameState, key: string, params: LogEntry['params'] = {}): void {
   state.log.push({ round: state.round, key, params });
@@ -23,52 +25,93 @@ function idNumber(id: FigureId): number {
   return Number(id.replace(/\D/g, '')) || 0;
 }
 
-export function startRound(state: GameState, events: GameEvent[]): void {
+export function startRound(bus: Bus): void {
+  const state = bus.state;
   state.round += 1;
-  state.turn = { order: buildTurnOrder(state), index: 0, phase: 'move', tileActionsUsed: 0 };
-  events.push({ type: 'roundStarted', round: state.round });
+  state.ruleDamage = {};
+  state.spawnsThisRound = 0;
+  for (const rule of state.rules) rule.firedThisRound = 0;
+  state.turn = {
+    order: buildTurnOrder(state),
+    index: 0,
+    phase: 'move',
+    tileActionsUsed: 0,
+    effectsUsed: 0,
+  };
   log(state, 'log.roundStarted', { round: state.round });
-  beginTurnAtIndex(state, events);
+  // Rules added in an earlier round become active now (SPEC 3, step 1).
+  activateRules(bus);
+  emit(bus, { type: 'roundStarted', round: state.round });
+  if (checkVictory(bus)) return;
+  beginTurnAtIndex(bus);
 }
 
-/** Starts the turn at turn.index, skipping dead figures; ends the round if none is left. */
-function beginTurnAtIndex(state: GameState, events: GameEvent[]): void {
-  while (state.turn.index < state.turn.order.length) {
+function resetTurnCounters(state: GameState): void {
+  state.turn.phase = 'move';
+  state.turn.tileActionsUsed = 0;
+  state.turn.effectsUsed = 0;
+  for (const rule of state.rules) rule.firedThisTurn = 0;
+}
+
+/**
+ * Starts the turn at turn.index. Dead figures are skipped, figures with AUSSETZEN
+ * lose their turn; if nobody is left, the round ends.
+ */
+function beginTurnAtIndex(bus: Bus): void {
+  const state = bus.state;
+  while (state.status === 'playing' && state.turn.index < state.turn.order.length) {
     const id = state.turn.order[state.turn.index];
     const fig = id ? state.figures[id] : undefined;
     if (fig && fig.alive) {
-      state.turn.phase = 'move';
-      state.turn.tileActionsUsed = 0;
-      events.push({ type: 'turnStarted', figure: fig.id });
-      return;
+      resetTurnCounters(state);
+      const skip = fig.statuses.findIndex((s) => s.kind === 'skip');
+      if (skip >= 0) {
+        fig.statuses.splice(skip, 1);
+        fig.statuses.push({ kind: 'skipCooldown' });
+        log(state, 'log.turnSkipped', { figure: fig.id });
+        emit(bus, { type: 'turnSkipped', figure: fig.id });
+        state.turn.index += 1;
+        continue;
+      }
+      emit(bus, { type: 'turnStarted', figure: fig.id });
+      if (checkVictory(bus)) return;
+      // A rule may have killed the figure at its turn start.
+      if (fig.alive) return;
     }
     state.turn.index += 1;
   }
-  endRound(state, events);
+  if (state.status === 'playing') endRound(bus);
 }
 
-export function endTurn(state: GameState, events: GameEvent[]): void {
+export function endTurn(bus: Bus): void {
+  const state = bus.state;
   const id = state.turn.order[state.turn.index];
-  if (id) events.push({ type: 'turnEnded', figure: id });
-  if (checkVictory(state, events)) return;
+  const fig = id ? state.figures[id] : undefined;
+  if (id) emit(bus, { type: 'turnEnded', figure: id });
+  // The cooldown lasts until the figure has played one normal turn.
+  if (fig) fig.statuses = fig.statuses.filter((s) => s.kind !== 'skipCooldown');
+  if (checkVictory(bus)) return;
   state.turn.index += 1;
-  beginTurnAtIndex(state, events);
+  beginTurnAtIndex(bus);
 }
 
-function endRound(state: GameState, events: GameEvent[]): void {
-  events.push({ type: 'roundEnded', round: state.round });
+function endRound(bus: Bus): void {
+  const state = bus.state;
+  emit(bus, { type: 'roundEnded', round: state.round });
+  if (checkVictory(bus)) return;
   tickStatuses(state);
+  expireRules(bus);
   const limit = state.settings.tempo.roundLimit;
   if (limit && state.round >= limit.rounds) {
     const bossFig = Object.values(state.figures).find((f) => f.kind === 'boss');
-    finishGame(state, events, {
+    finishGame(bus, {
       winner: limit.outcome === 'boss' ? 'boss' : 'draw',
       winners: limit.outcome === 'boss' && bossFig ? [bossFig.id] : [],
       reason: 'roundLimit',
     });
     return;
   }
-  startRound(state, events);
+  startRound(bus);
 }
 
 /** Round-based statuses count down at round end (SPEC 3, step 4). */
@@ -83,44 +126,46 @@ function tickStatuses(state: GameState): void {
 }
 
 export function damageFigure(
-  state: GameState,
-  events: GameEvent[],
+  bus: Bus,
   targetId: FigureId,
   amount: number,
   source: 'attack' | 'rule',
   attackerId: FigureId | null,
 ): void {
+  const state = bus.state;
   const target = state.figures[targetId];
   if (!target || !target.alive || amount <= 0) return;
   const dealt = Math.min(amount, target.hp);
   target.hp -= dealt;
-  events.push({ type: 'damaged', figure: targetId, amount: dealt, source });
   const targetStats = state.stats[targetId];
   if (targetStats) targetStats.damageTaken += dealt;
   if (attackerId) {
     const attackerStats = state.stats[attackerId];
     if (attackerStats) attackerStats.damageDealt += dealt;
   }
-  if (target.hp <= 0) {
+  const died = target.hp <= 0;
+  if (died) {
     target.alive = false;
-    events.push({ type: 'died', figure: targetId, pos: { ...target.pos } });
     log(state, 'log.died', { figure: targetId });
   }
+  emit(bus, { type: 'damaged', figure: targetId, amount: dealt, source });
+  if (died) emit(bus, { type: 'died', figure: targetId, pos: { ...target.pos } });
 }
 
 /** Evaluates win conditions (SPEC 2). Returns true if the game is over. */
-export function checkVictory(state: GameState, events: GameEvent[]): boolean {
+export function checkVictory(bus: Bus): boolean {
+  const state = bus.state;
   if (state.status === 'over') return true;
   const all = Object.values(state.figures);
   const bossFig = all.find((f) => f.kind === 'boss');
   const aliveHeroes = all.filter((f) => f.kind === 'hero' && f.alive);
   const bossDead = !bossFig || !bossFig.alive;
   if (bossDead && aliveHeroes.length === 0) {
-    finishGame(state, events, { winner: 'draw', winners: [], reason: 'simultaneous' });
+    finishGame(bus, { winner: 'draw', winners: [], reason: 'simultaneous' });
     return true;
   }
   if (bossDead) {
-    finishGame(state, events, {
+    finishGame(bus, {
       winner: 'heroes',
       winners: aliveHeroes.map((h) => h.id),
       reason: 'bossDied',
@@ -128,15 +173,16 @@ export function checkVictory(state: GameState, events: GameEvent[]): boolean {
     return true;
   }
   if (aliveHeroes.length === 0) {
-    finishGame(state, events, { winner: 'boss', winners: [bossFig.id], reason: 'heroesDied' });
+    finishGame(bus, { winner: 'boss', winners: [bossFig.id], reason: 'heroesDied' });
     return true;
   }
   return false;
 }
 
-function finishGame(state: GameState, events: GameEvent[], result: GameResult): void {
+function finishGame(bus: Bus, result: GameResult): void {
+  const state = bus.state;
   state.status = 'over';
   state.result = result;
-  events.push({ type: 'gameOver', result });
   log(state, `log.gameOver.${result.winner}`, { reason: result.reason });
+  emit(bus, { type: 'gameOver', result });
 }

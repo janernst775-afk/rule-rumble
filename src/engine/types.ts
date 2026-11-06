@@ -1,3 +1,5 @@
+import type { RuleDefinition } from '../lang/ast';
+
 // Core engine types. Everything here is plain JSON: no classes, Maps or functions.
 
 export type Pos = { x: number; y: number };
@@ -77,7 +79,9 @@ export type Status =
   | { kind: 'shield'; remaining: number }
   | { kind: 'skip'; remaining: number }
   | { kind: 'moveMod'; delta: number; rounds: number }
-  | { kind: 'wheelMod'; delta: Percent; rounds: number };
+  | { kind: 'wheelMod'; delta: Percent; rounds: number }
+  /** Set after a skipped turn: the same figure cannot be skipped twice in a row. */
+  | { kind: 'skipCooldown' };
 
 export type FigureKind = 'hero' | 'boss' | 'npc';
 
@@ -116,22 +120,43 @@ export interface Participant {
   difficulty: Difficulty | null;
 }
 
-/** Placeholder for v0.3+ custom NPC types. */
+export type NpcBehavior = 'chase' | 'wander' | 'stand' | 'flee';
+
 export interface NpcType {
   id: string;
   name: string;
+  /** Short symbol shown on the token, e.g. "Z". */
+  symbol: string;
+  color: string;
   hp: number;
   move: number;
-  behavior: 'chase' | 'wander' | 'stand' | 'flee';
+  behavior: NpcBehavior;
 }
 
-/** Placeholder for v0.3 active rules. */
+/** A rule in the running game. */
 export interface ActiveRule {
+  /** Instance id in this game, e.g. "r3". */
   id: string;
-  ruleId: string;
+  def: RuleDefinition;
   authorId: FigureId;
+  /** Increasing number: rules react in the order they were added (SPEC 5.6). */
+  order: number;
+  addedRound: number;
   activeFromRound: number;
+  /** Last round in which the rule is active; null = until the end of the game. */
+  expiresAfterRound: number | null;
   firedThisRound: number;
+  firedThisTurn: number;
+  firedTotal: number;
+}
+
+/** Overflow variant "Abstimmung": all living heroes and the boss vote which rule goes. */
+export interface PendingVote {
+  candidate: RuleDefinition;
+  authorId: FigureId;
+  voters: FigureId[];
+  /** voter → active rule id */
+  votes: Record<FigureId, string>;
 }
 
 export interface FigureStats {
@@ -161,6 +186,8 @@ export interface TurnState {
   phase: Phase;
   /** Tile actions already used this turn (Baumeister allows two). */
   tileActionsUsed: number;
+  /** Rule effects executed this turn (budget, SPEC 6.2). */
+  effectsUsed: number;
 }
 
 export interface LogEntry {
@@ -186,6 +213,12 @@ export interface GameState {
   participants: Record<FigureId, Participant>;
   npcTypes: NpcType[];
   rules: ActiveRule[];
+  pendingVote: PendingVote | null;
+  /** Rule damage taken per figure this round (attacks do not count). */
+  ruleDamage: Record<FigureId, number>;
+  spawnsThisRound: number;
+  /** Texture id → name, so rules can ask for feld.textur. */
+  textureNames: Record<string, string>;
   world: Record<string, number>;
   stats: Record<FigureId, FigureStats>;
   log: LogEntry[];
@@ -196,9 +229,25 @@ export interface GameState {
 export type Action =
   | { type: 'move'; actor: FigureId; path: Pos[] }
   | { type: 'attack'; actor: FigureId; target: FigureId }
-  | { type: 'addTile'; actor: FigureId; pos: Pos; textureId: string | null }
+  | {
+      type: 'addTile';
+      actor: FigureId;
+      pos: Pos;
+      textureId: string | null;
+      /** Name of the texture, registered for rules (feld.textur). */
+      textureName?: string | null;
+    }
   | { type: 'removeTile'; actor: FigureId; pos: Pos }
-  | { type: 'addRule'; actor: FigureId; ruleId: string }
+  | {
+      type: 'addRule';
+      actor: FigureId;
+      rule: RuleDefinition;
+      /** Overflow "Ersteller wählt": the active rule that has to go. */
+      replaceRuleId?: string;
+    }
+  | { type: 'voteRule'; actor: FigureId; ruleId: string }
+  /** Lets the NPC on turn act (behavior is computed by the engine). */
+  | { type: 'npcAct'; actor: FigureId }
   | { type: 'pass'; actor: FigureId };
 
 export type ActionType = Action['type'];
@@ -221,7 +270,17 @@ export type ActionErrorCode =
   | 'tileOccupied'
   | 'minTiles'
   | 'wouldDisconnect'
-  | 'tileActionsUsed';
+  | 'tileActionsUsed'
+  | 'invalidRule'
+  | 'ruleLimitReached'
+  | 'chooseRuleToReplace'
+  | 'unknownRule'
+  | 'votePending'
+  | 'noVote'
+  | 'notVoter'
+  | 'alreadyVoted'
+  | 'notNpc'
+  | 'npcActsAlone';
 
 export interface ActionError {
   code: ActionErrorCode;
@@ -232,8 +291,8 @@ export type GameEvent =
   | { type: 'gameStarted' }
   | { type: 'roundStarted'; round: number }
   | { type: 'turnStarted'; figure: FigureId }
-  | { type: 'tileLeft'; figure: FigureId; pos: Pos }
-  | { type: 'tileEntered'; figure: FigureId; pos: Pos; firstVisit: boolean }
+  | { type: 'tileLeft'; figure: FigureId; pos: Pos; to: Pos }
+  | { type: 'tileEntered'; figure: FigureId; pos: Pos; from: Pos; firstVisit: boolean }
   | { type: 'attackDeclared'; attacker: FigureId; target: FigureId; chance: Percent }
   | {
       type: 'wheelResolved';
@@ -246,8 +305,24 @@ export type GameEvent =
     }
   | { type: 'damaged'; figure: FigureId; amount: number; source: 'attack' | 'rule' }
   | { type: 'died'; figure: FigureId; pos: Pos }
-  | { type: 'tileAdded'; figure: FigureId; pos: Pos; textureId: string | null }
-  | { type: 'tileRemoved'; figure: FigureId; pos: Pos }
+  | { type: 'tileAdded'; figure: FigureId | null; pos: Pos; textureId: string | null }
+  | { type: 'tileRemoved'; figure: FigureId | null; pos: Pos }
+  | { type: 'ruleAdded'; rule: string; name: string; activeFromRound: number }
+  | { type: 'ruleActivated'; rule: string; name: string }
+  | { type: 'ruleRemoved'; rule: string; name: string; reason: 'overflow' | 'expired' | 'vote' }
+  | { type: 'ruleFired'; rule: string; name: string }
+  | { type: 'chainStopped'; rule: string; name: string; reason: 'depth' | 'budget' }
+  | { type: 'message'; rule: string; text: string }
+  | { type: 'spawned'; figure: FigureId; pos: Pos }
+  | { type: 'spawnBlocked'; rule: string }
+  | { type: 'healed'; figure: FigureId; amount: number }
+  | { type: 'statusAdded'; figure: FigureId; status: Status }
+  | { type: 'turnSkipped'; figure: FigureId }
+  | { type: 'dodged'; figure: FigureId }
+  | { type: 'damageCapped'; figure: FigureId }
+  | { type: 'tileTypeChanged'; pos: Pos; tileType: TileType }
+  | { type: 'voteStarted'; voters: FigureId[] }
+  | { type: 'voteCast'; figure: FigureId; rule: string }
   | { type: 'passed'; figure: FigureId }
   | { type: 'turnEnded'; figure: FigureId }
   | { type: 'roundEnded'; round: number }

@@ -1,4 +1,7 @@
 import { createStartBoard, tileKey } from './board';
+import { createBus } from './bus';
+import { DEFAULT_NPC_TYPES } from './npc';
+import { emptyStats } from './stats';
 import { startRound } from './turn';
 import { bossHpFor, sanitizeSettings } from './settings';
 import { normalizeSeed } from './rng';
@@ -40,19 +43,6 @@ export function validateSetup(seats: readonly SeatSetup[]): SetupError | null {
   if (heroCount > MAX_HEROES) return 'tooManyHeroes';
   if (bossCount !== 1) return 'needExactlyOneBoss';
   return null;
-}
-
-export function emptyStats(): FigureStats {
-  return {
-    attacks: 0,
-    hits: 0,
-    misses: 0,
-    damageDealt: 0,
-    damageTaken: 0,
-    tilesMoved: 0,
-    tilesAdded: 0,
-    tilesRemoved: 0,
-  };
 }
 
 /** Hero start tiles around the top-left corner; the boss starts in the opposite corner. */
@@ -134,14 +124,18 @@ export function createGame(setup: GameSetup): { state: GameState; events: GameEv
     seed: normalizeSeed(setup.seed),
     rng: normalizeSeed(setup.seed),
     round: 0,
-    turn: { order: [], index: 0, phase: 'move', tileActionsUsed: 0 },
+    turn: { order: [], index: 0, phase: 'move', tileActionsUsed: 0, effectsUsed: 0 },
     status: 'playing',
     tiles,
     figures,
     seatOrder,
     participants,
-    npcTypes: [],
+    npcTypes: structuredClone(DEFAULT_NPC_TYPES),
     rules: [],
+    pendingVote: null,
+    ruleDamage: {},
+    spawnsThisRound: 0,
+    textureNames: {},
     world: {},
     stats,
     log: [],
@@ -149,7 +143,8 @@ export function createGame(setup: GameSetup): { state: GameState; events: GameEv
     nextId,
   };
 
-  const events: GameEvent[] = [{ type: 'gameStarted' }];
-  startRound(state, events);
-  return { state, events };
+  const bus = createBus(state);
+  bus.events.push({ type: 'gameStarted' });
+  startRound(bus);
+  return { state, events: bus.events };
 }

@@ -88,6 +88,8 @@ export type ActionAvailability = { available: true } | { available: false; reaso
 export function actionAvailability(state: GameState, type: ActionType): ActionAvailability {
   const fig = currentFigure(state);
   if (!fig) return { available: false, reason: 'reason.gameOver' };
+  if (state.pendingVote && type !== 'voteRule')
+    return { available: false, reason: 'reason.votePending' };
   switch (type) {
     case 'attack': {
       if (state.turn.tileActionsUsed > 0)
@@ -117,10 +119,23 @@ export function actionAvailability(state: GameState, type: ActionType): ActionAv
         return { available: false, reason: 'reason.noRemovable' };
       return { available: true };
     }
-    case 'addRule':
-      return { available: false, reason: 'reason.fromV03' };
+    case 'addRule': {
+      if (state.turn.tileActionsUsed > 0)
+        return { available: false, reason: 'reason.tileActionStarted' };
+      const max = state.settings.rules.maxActive;
+      if (
+        max !== null &&
+        state.rules.length >= max &&
+        state.settings.rules.overflow === 'blockNew'
+      ) {
+        return { available: false, reason: 'reason.ruleLimitReached' };
+      }
+      return { available: true };
+    }
     case 'pass':
     case 'move':
+    case 'npcAct':
+    case 'voteRule':
       return { available: true };
   }
 }
