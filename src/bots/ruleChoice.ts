@@ -6,9 +6,10 @@ import { attackTargets, currentFigure, moveOptions } from '../engine/query';
 import { applyAction } from '../engine/reducer';
 import { randomPick, type RngHolder } from '../engine/rng';
 import { oldestRule, ruleSlotsFull } from '../engine/rules';
-import type { Action, Figure, FigureId, GameState } from '../engine/types';
+import type { Action, Figure, FigureId, GameEvent, GameState } from '../engine/types';
 import type { RuleDefinition } from '../lang/ast';
 import { START_RULES } from '../lang/library/startRules';
+import { ruleStrength } from '../lang/strength';
 import { validateRule } from '../lang/validator';
 import { evaluate } from './evaluate';
 
@@ -16,6 +17,8 @@ import { evaluate } from './evaluate';
 const LOOKAHEAD_ROUNDS = 2;
 /** How many library rules are tried per decision (performance). */
 const CANDIDATES = 5;
+/** Bots add no further "heavy" rule once this many are in play. */
+const MAX_HEAVY_RULES = 1;
 /** A rule must beat "no rule" by this many points. */
 const MIN_GAIN = 1.5;
 
@@ -29,13 +32,16 @@ function enemiesOf(state: GameState, me: Figure): Figure[] {
 }
 
 /** One quick turn: walk towards the nearest enemy, attack if possible, else pass. */
-function fastTurn(state: GameState): GameState {
+export function fastTurn(state: GameState, onEvents?: (events: GameEvent[]) => void): GameState {
   if (state.pendingVote) {
     let s = state;
     for (const voter of state.pendingVote.voters) {
       if (s.pendingVote?.votes[voter] || !s.pendingVote) continue;
       const r = applyAction(s, { type: 'voteRule', actor: voter, ruleId: chooseVote(s, voter) });
-      if (r.ok) s = r.state;
+      if (r.ok) {
+        s = r.state;
+        onEvents?.(r.events);
+      }
     }
     return s;
   }
@@ -43,6 +49,7 @@ function fastTurn(state: GameState): GameState {
   if (!me) return state;
   const tryAct = (s: GameState, a: Action): GameState => {
     const r = applyAction(s, a);
+    if (r.ok) onEvents?.(r.events);
     return r.ok ? r.state : s;
   };
   if (me.kind === 'npc') return tryAct(state, { type: 'npcAct', actor: me.id });
@@ -77,8 +84,13 @@ function lookahead(state: GameState, me: FigureId): number {
 /** Library rules the running game accepts and that are not in play yet. */
 export function candidateRules(state: GameState): RuleDefinition[] {
   const active = new Set(state.rules.map((r) => r.def.id));
+  // SPEC 6.3: bots do not stack "heavy" rules.
+  const heavyInPlay = state.rules.filter((r) => ruleStrength(r.def.ast).level === 'heavy').length;
   return START_RULES.filter(
-    (r) => !active.has(r.id) && validateRule(r.ast, state.settings, state.npcTypes).length === 0,
+    (r) =>
+      !active.has(r.id) &&
+      !(heavyInPlay >= MAX_HEAVY_RULES && ruleStrength(r.ast).level === 'heavy') &&
+      validateRule(r.ast, state.settings, state.npcTypes).length === 0,
   );
 }
 
