@@ -17,6 +17,7 @@ export function StartScreen() {
   const { t } = useTranslation();
   const { name, avatar, setName, setAvatar } = useProfile();
   const openLobby = useApp((s) => s.openLobby);
+  const setScreen = useApp((s) => s.setScreen);
   const fileInput = useRef<HTMLInputElement>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -149,11 +150,7 @@ export function StartScreen() {
             >
               {t('start.howTo')}
             </button>
-            <button
-              type="button"
-              className="btn btn-soft"
-              onClick={() => setNotice(t('start.librarySoon'))}
-            >
+            <button type="button" className="btn btn-soft" onClick={() => setScreen('library')}>
               {t('start.library')}
             </button>
           </div>

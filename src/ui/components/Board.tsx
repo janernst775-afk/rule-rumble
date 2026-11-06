@@ -15,7 +15,7 @@ import {
   tileLabel,
 } from '../../engine/board';
 import type { TextureRecord } from '../../assets/store';
-import type { Figure, GameState, Pos, TileKey } from '../../engine/types';
+import type { Figure, GameState, Pos, TileKey, TileType } from '../../engine/types';
 import { GAP, PITCH, TILE } from '../gameUi';
 import { initials } from '../avatarUtils';
 import { MinusIcon, PlusIcon, TargetIcon } from './Icons';
@@ -292,6 +292,7 @@ export function Board({
                     rx={12}
                   />
                 )}
+                {tile.type !== 'normal' && <TileTypeBadge type={tile.type} />}
                 {tile.type !== 'normal' && (
                   <rect
                     x={2}
@@ -361,7 +362,9 @@ export function Board({
                       dominantBaseline="central"
                       fontSize={r * 0.75}
                     >
-                      {initials(p?.name ?? '?')}
+                      {fig.kind === 'npc'
+                        ? (state.npcTypes.find((n) => n.id === fig.npcTypeId)?.symbol ?? 'N')
+                        : initials(p?.name ?? '?')}
                     </text>
                   )}
                   {fig.kind === 'boss' && (
@@ -438,5 +441,33 @@ export function Board({
         </button>
       </div>
     </div>
+  );
+}
+
+const TYPE_ICON: Record<Exclude<TileType, 'normal'>, { color: string; path: string }> = {
+  lava: {
+    color: '#FF7A1A',
+    path: 'M0 -6c3 3 5 5 5 8a5 5 0 0 1-10 0c0-2 2-4 3-5 0 2 1 3 2 3 0-2-1-4 0-6z',
+  },
+  eis: { color: '#4FB6F0', path: 'M0 -6v12M-5 -3l10 6M-5 3l10 -6' },
+  heilquelle: { color: '#2FA866', path: 'M-2 -6h4v4h4v4h-4v4h-4v-4h-4v-4h4z' },
+  falle: { color: '#8A5A2B', path: 'M0 -6l6 11h-12zM0 -2v3M0 3v0.5' },
+};
+
+/** Small symbol in the tile corner so rule tile types stay readable over textures (SPEC 4.1). */
+function TileTypeBadge({ type }: { type: Exclude<TileType, 'normal'> }) {
+  const icon = TYPE_ICON[type];
+  return (
+    <g transform={`translate(${TILE - 13} 13)`} pointerEvents="none" aria-hidden="true">
+      <circle r={10} fill="#fff" stroke={icon.color} strokeWidth={2.5} />
+      <path
+        d={icon.path}
+        fill={type === 'eis' || type === 'falle' ? 'none' : icon.color}
+        stroke={icon.color}
+        strokeWidth={type === 'eis' || type === 'falle' ? 2 : 0}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </g>
   );
 }

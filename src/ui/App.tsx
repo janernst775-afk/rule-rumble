@@ -8,6 +8,9 @@ import { GameScreen } from './screens/GameScreen';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { ResultScreen } from './screens/ResultScreen';
 import { StartScreen } from './screens/StartScreen';
+import { LibraryScreen } from './screens/LibraryScreen';
+import { onRuleAdded } from '../store/gameStore';
+import { useLibrary } from '../store/libraryStore';
 
 export function App() {
   useAudioPrefsSync();
@@ -19,14 +22,19 @@ export function App() {
     void loadTextures();
   }, [loadTextures]);
 
+  // Every rule that enters a game is kept in the local library (SPEC 5.5).
+  useEffect(() => onRuleAdded((def) => useLibrary.getState().record(def)), []);
+
   useEffect(() => {
-    if (screen === 'start' || screen === 'lobby') setMusic('menu');
+    if (screen === 'start' || screen === 'lobby' || screen === 'library') setMusic('menu');
     if (screen === 'result') setMusic(null);
   }, [screen]);
 
   switch (screen) {
     case 'start':
       return <StartScreen />;
+    case 'library':
+      return <LibraryScreen />;
     case 'lobby':
       return <LobbyScreen />;
     case 'game':

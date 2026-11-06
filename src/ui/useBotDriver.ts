@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { chooseTurn } from '../bots/chooseTurn';
+import { chooseVote } from '../bots/ruleChoice';
 import { isSameTurn } from '../bots/simulate';
 import { playSfx } from '../audio/audio';
 import type { ActionType } from '../engine/types';
@@ -25,6 +26,7 @@ export function useBotDriver(): void {
 
   useEffect(() => {
     if (!game || game.status !== 'playing' || wheel || anim || isHumanTurn(game)) return;
+    if (game.pendingVote) return; // handled by the vote effect below
     // One run per turn: the run itself handles both phases.
     const key = `${generation}:${game.round}:${game.turn.index}`;
     if (handled.current === key) return;
@@ -39,10 +41,16 @@ export function useBotDriver(): void {
       const turn = chooseTurn(state);
       if (!turn) return;
       let current = state;
+      if (turn.action.type === 'npcAct') {
+        store().dispatch(turn.action);
+        return;
+      }
       if (current.turn.phase === 'move') {
         const ok = await store().animateMove(turn.action.actor, turn.path, STEP_MS * tempo);
         const next = store().game;
         if (!ok || !next || store().generation !== generation) return;
+        // A rule (lava, trap …) may have ended the turn during the walk.
+        if (!isSameTurn(state, next)) return;
         current = next;
         await wait(250 * tempo);
       }
@@ -73,6 +81,31 @@ export function useBotDriver(): void {
         }
       }
     })();
+  }, [game, wheel, anim, generation]);
+
+  // Overflow vote: bot voters vote one after another, independent of whose turn it is.
+  const voteKey = useRef<string | null>(null);
+  useEffect(() => {
+    const vote = game?.pendingVote;
+    if (!game || !vote || wheel || anim) return;
+    const botVoter = vote.voters.find(
+      (v) => !vote.votes[v] && game.participants[v]?.controller !== 'human',
+    );
+    if (!botVoter) return;
+    const key = `${generation}:${game.round}:${game.turn.index}:${botVoter}`;
+    if (voteKey.current === key) return;
+    voteKey.current = key;
+    const tempo = BOT_TEMPO[game.settings.bots.speed];
+    // No cleanup: re-renders must not cancel the vote; the generation check guards stale runs.
+    setTimeout(() => {
+      const s = useGame.getState().game;
+      if (!s?.pendingVote || useGame.getState().generation !== generation) return;
+      useGame.getState().dispatch({
+        type: 'voteRule',
+        actor: botVoter,
+        ruleId: chooseVote(s, botVoter),
+      });
+    }, THINK_MS * tempo);
   }, [game, wheel, anim, generation]);
 }
 

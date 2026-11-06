@@ -39,7 +39,6 @@ interface Props {
 /** "Eigene Einstellungen" (SPEC 2.2). Values that only take effect later are shown but disabled. */
 export function SettingsPanel({ settings, onChange }: Props) {
   const { t } = useTranslation();
-  const v03 = t('common.fromVersion', { version: 'v0.3' });
   const v06 = t('common.fromVersion', { version: 'v0.6' });
 
   const update = (fn: (s: Settings) => void) => {
@@ -54,7 +53,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
     <div className="settings-columns">
       <div className="settings-col">
         <Group title={t('settings.groups.rules')} defaultOpen>
-          <SettingRow label={t('settings.maxActive')} badge={v03} disabled>
+          <SettingRow label={t('settings.maxActive')}>
             <Stepper
               label={t('settings.maxActive')}
               value={s.rules.maxActive ?? L.maxActiveRules.max + 1}
@@ -64,10 +63,9 @@ export function SettingsPanel({ settings, onChange }: Props) {
               onChange={(v) =>
                 update((x) => (x.rules.maxActive = v > L.maxActiveRules.max ? null : v))
               }
-              disabled
             />
           </SettingRow>
-          <SettingRow label={t('settings.overflow')} badge={v03} disabled stacked>
+          <SettingRow label={t('settings.overflow')} stacked>
             <Segmented
               label={t('settings.overflow')}
               value={s.rules.overflow}
@@ -76,10 +74,9 @@ export function SettingsPanel({ settings, onChange }: Props) {
                 label: t(`settings.overflowOptions.${o}`),
               }))}
               onChange={(v) => update((x) => (x.rules.overflow = v))}
-              disabled
             />
           </SettingRow>
-          <SettingRow label={t('settings.activationDelay')} badge={v03} disabled>
+          <SettingRow label={t('settings.activationDelay')}>
             <Segmented
               label={t('settings.activationDelay')}
               value={s.rules.activationDelay}
@@ -88,7 +85,6 @@ export function SettingsPanel({ settings, onChange }: Props) {
                 label: t(`settings.activationOptions.${o}`),
               }))}
               onChange={(v) => update((x) => (x.rules.activationDelay = v))}
-              disabled
             />
           </SettingRow>
           <SettingRow label={t('settings.proCode')} badge={v06} disabled>
@@ -99,22 +95,20 @@ export function SettingsPanel({ settings, onChange }: Props) {
               disabled
             />
           </SettingRow>
-          <SettingRow label={t('settings.ruleDamage')} badge={v03} disabled>
+          <SettingRow label={t('settings.ruleDamage')}>
             <Stepper
               label={t('settings.ruleDamage')}
               value={s.rules.ruleDamagePerFigurePerRound}
               min={L.ruleDamagePerFigurePerRound.min}
               max={L.ruleDamagePerFigurePerRound.max}
               onChange={(v) => update((x) => (x.rules.ruleDamagePerFigurePerRound = v))}
-              disabled
             />
           </SettingRow>
-          <SettingRow label={t('settings.allowRandom')} badge={v03} disabled>
+          <SettingRow label={t('settings.allowRandom')}>
             <Toggle
               label={t('settings.allowRandom')}
               checked={s.rules.allowRandom}
               onChange={(v) => update((x) => (x.rules.allowRandom = v))}
-              disabled
             />
           </SettingRow>
         </Group>
@@ -284,35 +278,32 @@ export function SettingsPanel({ settings, onChange }: Props) {
               onChange={(v) => update((x) => (x.combat.friendlyFire = v))}
             />
           </SettingRow>
-          <SettingRow label={t('settings.comeback')} badge={v03} disabled>
+          <SettingRow label={t('settings.comeback')}>
             <Toggle
               label={t('settings.comeback')}
               checked={s.combat.comeback}
               onChange={(v) => update((x) => (x.combat.comeback = v))}
-              disabled
             />
           </SettingRow>
         </Group>
 
         <Group title={t('settings.groups.npcs')}>
-          <SettingRow label={t('settings.maxNpcs')} badge={v03} disabled>
+          <SettingRow label={t('settings.maxNpcs')}>
             <Stepper
               label={t('settings.maxNpcs')}
               value={s.npcs.maxOnBoard}
               min={L.npcsOnBoard.min}
               max={L.npcsOnBoard.max}
               onChange={(v) => update((x) => (x.npcs.maxOnBoard = v))}
-              disabled
             />
           </SettingRow>
-          <SettingRow label={t('settings.spawnsPerRound')} badge={v03} disabled>
+          <SettingRow label={t('settings.spawnsPerRound')}>
             <Stepper
               label={t('settings.spawnsPerRound')}
               value={s.npcs.maxSpawnsPerRound}
               min={L.npcSpawnsPerRound.min}
               max={L.npcSpawnsPerRound.max}
               onChange={(v) => update((x) => (x.npcs.maxSpawnsPerRound = v))}
-              disabled
             />
           </SettingRow>
         </Group>

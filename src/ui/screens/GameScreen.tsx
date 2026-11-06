@@ -25,6 +25,8 @@ import { PlayersPanel, RulesPanel } from '../components/GamePanels';
 import { MenuIcon } from '../components/Icons';
 import { PrefsDialog } from '../components/PrefsDialog';
 import { TileDialog, type TileDialogResult } from '../components/TileDialog';
+import { RulePicker } from '../components/RulePicker';
+import { VoteDialog } from '../components/VoteDialog';
 import { Wheel } from '../components/Wheel';
 import { displayParams, isHumanTurn } from '../gameUi';
 import { useBotDriver } from '../useBotDriver';
@@ -69,6 +71,7 @@ export function GameScreen() {
     mode: 'none',
   });
   const [dialogState, setDialogState] = useState<{ key: string; pos: Pos } | null>(null);
+  const [pickerKey, setPickerKey] = useState<string | null>(null);
 
   useBotDriver();
 
@@ -86,6 +89,13 @@ export function GameScreen() {
     [tileKeyOfTurn],
   );
   const dialogPos = dialogState?.key === tileKeyOfTurn && canAct ? dialogState.pos : null;
+  const pickerOpen = pickerKey === turnKey && canAct && !game?.pendingVote;
+  // The human votes when an overflow vote is pending and it is one of the voters.
+  const humanVoter = game?.pendingVote
+    ? game.pendingVote.voters.find(
+        (v) => game.participants[v]?.controller === 'human' && !game.pendingVote?.votes[v],
+      )
+    : undefined;
 
   // Plan and target choice belong to one turn; they reset implicitly when the turn changes.
   const plan = useMemo(
@@ -168,6 +178,11 @@ export function GameScreen() {
         setTileMode(tileMode === mode ? 'none' : mode);
         return;
       }
+      if (type === 'addRule') {
+        playSfx('click');
+        setPickerKey(turnKey);
+        return;
+      }
       if (type === 'attack') {
         const targets = attackTargets(game, me.id);
         if (targets.length === 1 && targets[0])
@@ -175,7 +190,7 @@ export function GameScreen() {
         else if (targets.length > 1) setTargetChoice(targets);
       }
     },
-    [game, me, canAct, dispatch, openWheel, setTargetChoice, tileMode, setTileMode],
+    [game, me, canAct, dispatch, openWheel, setTargetChoice, tileMode, setTileMode, turnKey],
   );
 
   // Turn timer (UI only; the engine never reads the clock).
@@ -211,6 +226,7 @@ export function GameScreen() {
       const target = e.target as HTMLElement | null;
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
       if (wheel || menuOpen || prefsOpen || targetChoice || confirmLeave || dialogPos) return;
+      if (pickerOpen || humanVoter) return;
       if (e.key === 'Escape' && tileMode !== 'none') {
         setTileMode('none');
         return;
@@ -262,6 +278,8 @@ export function GameScreen() {
     targetChoice,
     confirmLeave,
     dialogPos,
+    pickerOpen,
+    humanVoter,
     tileMode,
     setTileMode,
     rightOpen,
@@ -554,6 +572,27 @@ export function GameScreen() {
           author={participant?.name ?? ''}
           onCancel={() => setDialogState(null)}
           onCreate={(result) => onTileCreated(dialogPos, result)}
+        />
+      )}
+      {pickerOpen && me && (
+        <RulePicker
+          game={game}
+          onCancel={() => setPickerKey(null)}
+          onConfirm={(rule, replaceRuleId) => {
+            setPickerKey(null);
+            dispatch(
+              replaceRuleId
+                ? { type: 'addRule', actor: me.id, rule, replaceRuleId }
+                : { type: 'addRule', actor: me.id, rule },
+            );
+          }}
+        />
+      )}
+      {humanVoter && (
+        <VoteDialog
+          game={game}
+          voter={humanVoter}
+          onVote={(ruleId) => dispatch({ type: 'voteRule', actor: humanVoter, ruleId })}
         />
       )}
       {confirmLeave && (

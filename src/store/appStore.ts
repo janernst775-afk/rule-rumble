@@ -3,7 +3,7 @@ import type { TemplateId } from '../engine/settings';
 import type { Settings } from '../engine/types';
 import * as L from '../lobby/lobby';
 
-export type Screen = 'start' | 'lobby' | 'game' | 'result';
+export type Screen = 'start' | 'lobby' | 'game' | 'result' | 'library';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 

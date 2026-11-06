@@ -11,6 +11,9 @@ export interface PrefsState {
   leftPanelOpen: boolean;
   rightPanelOpen: boolean;
   logOpen: boolean;
+  /** Library ids of pinned rules (shown first in the rules panel). */
+  pinnedRules: string[];
+  togglePinnedRule: (id: string) => void;
   setLanguage: (l: Language) => void;
   setMusicVolume: (v: number) => void;
   setSfxVolume: (v: number) => void;
@@ -30,6 +33,13 @@ export const usePrefs = create<PrefsState>()(
       leftPanelOpen: true,
       rightPanelOpen: true,
       logOpen: false,
+      pinnedRules: [],
+      togglePinnedRule: (id) =>
+        set((s) => ({
+          pinnedRules: s.pinnedRules.includes(id)
+            ? s.pinnedRules.filter((p) => p !== id)
+            : [...s.pinnedRules, id],
+        })),
       setLanguage: (language) => set({ language }),
       setMusicVolume: (musicVolume) => set({ musicVolume }),
       setSfxVolume: (sfxVolume) => set({ sfxVolume }),

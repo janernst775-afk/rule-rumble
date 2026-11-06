@@ -1,0 +1,97 @@
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ruleSlotsFull } from '../../engine/rules';
+import type { GameState } from '../../engine/types';
+import type { RuleDefinition } from '../../lang/ast';
+import { validateRule } from '../../lang/validator';
+import { allRules, useLibrary } from '../../store/libraryStore';
+import { ruleDescription } from '../ruleText';
+import { Dialog } from './Dialog';
+import { RuleList } from './RuleList';
+
+interface Props {
+  game: GameState;
+  onCancel: () => void;
+  onConfirm: (rule: RuleDefinition, replaceRuleId?: string) => void;
+}
+
+/** Action "Neue Regel": pick a rule from the library (the editor follows in v0.4). */
+export function RulePicker({ game, onCancel, onConfirm }: Props) {
+  const { t } = useTranslation();
+  const own = useLibrary((s) => s.rules);
+  const [selected, setSelected] = useState<RuleDefinition | null>(null);
+  const [replaceId, setReplaceId] = useState<string | null>(null);
+
+  const inGame = new Set(game.rules.map((r) => r.def.id));
+  const disabledReason = (def: RuleDefinition): string | null => {
+    if (inGame.has(def.id)) return 'rules.alreadyActive';
+    const errors = validateRule(def.ast, game.settings, game.npcTypes);
+    if (errors.length === 0) return null;
+    return `validation.${errors[0]?.code ?? 'invalid'}`;
+  };
+
+  const full = ruleSlotsFull(game);
+  const overflow = game.settings.rules.overflow;
+  const needsReplace = full && overflow === 'authorChooses';
+  const activeFrom = game.round + game.settings.rules.activationDelay;
+  const canConfirm = selected !== null && (!needsReplace || replaceId !== null);
+
+  return (
+    <Dialog title={t('rules.pickTitle')} onClose={onCancel} width={920}>
+      <div className="rule-picker">
+        <RuleList
+          rules={allRules(own)}
+          selectedId={selected?.id ?? null}
+          onSelect={setSelected}
+          disabledReason={disabledReason}
+        />
+        <aside className="rule-picker-side">
+          {selected ? (
+            <>
+              <h3>{selected.ast.name}</h3>
+              <p>{ruleDescription(selected, t)}</p>
+            </>
+          ) : (
+            <p className="hint">{t('rules.pickHint')}</p>
+          )}
+          <p className="fair-note">
+            {activeFrom <= game.round
+              ? t('rules.fairNow')
+              : t('rules.fairNext', { round: activeFrom })}
+          </p>
+          {full && overflow === 'dropOldest' && <p className="hint">{t('rules.overflowDrop')}</p>}
+          {full && overflow === 'vote' && <p className="hint">{t('rules.overflowVote')}</p>}
+          {needsReplace && (
+            <fieldset className="replace-choice">
+              <legend className="label">{t('rules.chooseReplace')}</legend>
+              {game.rules.map((r) => (
+                <label key={r.id} className="checkbox">
+                  <input
+                    type="radio"
+                    name="replace"
+                    checked={replaceId === r.id}
+                    onChange={() => setReplaceId(r.id)}
+                  />
+                  {r.def.ast.name}
+                </label>
+              ))}
+            </fieldset>
+          )}
+          <div className="dialog-actions">
+            <button type="button" className="btn btn-soft" onClick={onCancel}>
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!canConfirm}
+              onClick={() => selected && onConfirm(selected, replaceId ?? undefined)}
+            >
+              {t('rules.confirm')}
+            </button>
+          </div>
+        </aside>
+      </div>
+    </Dialog>
+  );
+}

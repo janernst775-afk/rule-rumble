@@ -107,3 +107,10 @@ export const TargetIcon = (p: IconProps) => (
     <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
   </svg>
 );
+
+export const PinIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M9 4h6l-1 6 3 3H7l3-3z" />
+    <path d="M12 13v7" />
+  </svg>
+);
