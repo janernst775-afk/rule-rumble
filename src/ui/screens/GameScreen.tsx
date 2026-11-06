@@ -26,6 +26,10 @@ import { MenuIcon } from '../components/Icons';
 import { PrefsDialog } from '../components/PrefsDialog';
 import { TileDialog, type TileDialogResult } from '../components/TileDialog';
 import { RulePicker } from '../components/RulePicker';
+import { RuleEditor } from '../editor/RuleEditor';
+import { useLibrary } from '../../store/libraryStore';
+import { ruleSlotsFull } from '../../engine/rules';
+import type { RuleDefinition } from '../../lang/ast';
 import { VoteDialog } from '../components/VoteDialog';
 import { Wheel } from '../components/Wheel';
 import { displayParams, isHumanTurn } from '../gameUi';
@@ -72,6 +76,12 @@ export function GameScreen() {
   });
   const [dialogState, setDialogState] = useState<{ key: string; pos: Pos } | null>(null);
   const [pickerKey, setPickerKey] = useState<string | null>(null);
+  const [editorState, setEditorState] = useState<{
+    key: string;
+    initial: RuleDefinition | null;
+  } | null>(null);
+  const [preselectId, setPreselectId] = useState<string | undefined>(undefined);
+  const saveRule = useLibrary((s) => s.save);
 
   useBotDriver();
 
@@ -90,6 +100,8 @@ export function GameScreen() {
   );
   const dialogPos = dialogState?.key === tileKeyOfTurn && canAct ? dialogState.pos : null;
   const pickerOpen = pickerKey === turnKey && canAct && !game?.pendingVote;
+  const editor = editorState?.key === turnKey && pickerOpen ? editorState : null;
+  const setEditor = setEditorState;
   // The human votes when an overflow vote is pending and it is one of the voters.
   const humanVoter = game?.pendingVote
     ? game.pendingVote.voters.find(
@@ -574,10 +586,12 @@ export function GameScreen() {
           onCreate={(result) => onTileCreated(dialogPos, result)}
         />
       )}
-      {pickerOpen && me && (
+      {pickerOpen && me && !editor && (
         <RulePicker
           game={game}
+          preselectId={preselectId}
           onCancel={() => setPickerKey(null)}
+          onEdit={(initial) => setEditor({ key: turnKey, initial })}
           onConfirm={(rule, replaceRuleId) => {
             setPickerKey(null);
             dispatch(
@@ -585,6 +599,30 @@ export function GameScreen() {
                 ? { type: 'addRule', actor: me.id, rule, replaceRuleId }
                 : { type: 'addRule', actor: me.id, rule },
             );
+          }}
+        />
+      )}
+      {editor && me && (
+        <RuleEditor
+          initial={editor.initial}
+          game={game}
+          author={participant?.name ?? ''}
+          onClose={() => setEditor(null)}
+          onSave={(def) => {
+            saveRule(def);
+            setPreselectId(def.id);
+            setEditor(null);
+          }}
+          onPlay={(def) => {
+            saveRule(def);
+            setEditor(null);
+            // "Ersteller wählt" needs a choice: go back to the picker with the rule selected.
+            if (ruleSlotsFull(game) && game.settings.rules.overflow === 'authorChooses') {
+              setPreselectId(def.id);
+              return;
+            }
+            setPickerKey(null);
+            dispatch({ type: 'addRule', actor: me.id, rule: def });
           }}
         />
       )}

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { initI18n, LANGUAGES, type Language } from '../../i18n';
 import { usePrefs } from '../../store/prefsStore';
+import { useProfile } from '../../store/profileStore';
 import { VolumeSliders } from './AudioControls';
 import { Segmented } from './Controls';
 import { Dialog } from './Dialog';
@@ -9,6 +10,8 @@ export function PrefsDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const language = usePrefs((s) => s.language);
   const setLanguage = usePrefs((s) => s.setLanguage);
+  const codeLang = useProfile((s) => s.codeLang);
+  const setCodeLang = useProfile((s) => s.setCodeLang);
   const change = (l: Language) => {
     setLanguage(l);
     initI18n(l);
@@ -23,6 +26,18 @@ export function PrefsDialog({ onClose }: { onClose: () => void }) {
             value={language}
             options={LANGUAGES.map((l) => ({ value: l, label: t(`prefs.languages.${l}`) }))}
             onChange={change}
+          />
+        </div>
+        <div>
+          <span className="label">{t('prefs.codeLang')}</span>
+          <Segmented
+            label={t('prefs.codeLang')}
+            value={codeLang}
+            options={(['de', 'en'] as const).map((l) => ({
+              value: l,
+              label: t(`prefs.codeLangs.${l}`),
+            }))}
+            onChange={setCodeLang}
           />
         </div>
         <VolumeSliders />

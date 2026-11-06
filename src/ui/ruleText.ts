@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import type { EffectKind, RuleDefinition, TriggerKind } from '../lang/ast';
+import { explainRule } from '../lang/explain';
 import { libraryKey } from '../lang/library/startRules';
 
 export const TRIGGER_KINDS: TriggerKind[] = [
@@ -41,8 +42,8 @@ export function effectKinds(def: RuleDefinition): EffectKind[] {
 }
 
 /**
- * Plain-language description. Start rules have a hand-written text; other rules get
- * a short summary until the generated explanation (explain.ts) arrives in v0.4.
+ * Plain-language description: start rules have a hand-written text, every other rule
+ * is explained from its AST (lang/explain.ts).
  */
 export function ruleDescription(def: RuleDefinition, t: TFunction): string {
   if (def.id.startsWith('start.')) {
@@ -50,11 +51,7 @@ export function ruleDescription(def: RuleDefinition, t: TFunction): string {
     const text = t(key);
     if (text !== key) return text;
   }
-  const trigger = t(`ruleText.triggers.${def.ast.trigger.kind}`);
-  const effects = effectKinds(def)
-    .map((k) => t(`ruleText.effects.${k}`))
-    .join(', ');
-  return t('ruleText.generic', { trigger, effects });
+  return explainRule(def.ast, (k, p) => t(k, p));
 }
 
 export function usesRandom(def: RuleDefinition): boolean {

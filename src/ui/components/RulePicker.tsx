@@ -13,13 +13,19 @@ interface Props {
   game: GameState;
   onCancel: () => void;
   onConfirm: (rule: RuleDefinition, replaceRuleId?: string) => void;
+  /** Opens the rule editor (null = new rule). */
+  onEdit: (rule: RuleDefinition | null) => void;
+  /** Library id to select initially (e.g. a rule just saved in the editor). */
+  preselectId?: string | undefined;
 }
 
-/** Action "Neue Regel": pick a rule from the library (the editor follows in v0.4). */
-export function RulePicker({ game, onCancel, onConfirm }: Props) {
+/** Action "Neue Regel": pick a rule from the library or open the rule editor. */
+export function RulePicker({ game, onCancel, onConfirm, onEdit, preselectId }: Props) {
   const { t } = useTranslation();
   const own = useLibrary((s) => s.rules);
-  const [selected, setSelected] = useState<RuleDefinition | null>(null);
+  const [selected, setSelected] = useState<RuleDefinition | null>(
+    () => allRules(own).find((r) => r.id === preselectId) ?? null,
+  );
   const [replaceId, setReplaceId] = useState<string | null>(null);
 
   const inGame = new Set(game.rules.map((r) => r.def.id));
@@ -54,6 +60,20 @@ export function RulePicker({ game, onCancel, onConfirm }: Props) {
           ) : (
             <p className="hint">{t('rules.pickHint')}</p>
           )}
+          <div className="library-actions">
+            <button type="button" className="btn btn-small" onClick={() => onEdit(null)}>
+              {t('editor.newRuleButton')}
+            </button>
+            {selected && (
+              <button
+                type="button"
+                className="btn btn-soft btn-small"
+                onClick={() => onEdit(selected)}
+              >
+                {selected.id.startsWith('start.') ? t('editor.editCopy') : t('editor.edit')}
+              </button>
+            )}
+          </div>
           <p className="fair-note">
             {activeFrom <= game.round
               ? t('rules.fairNow')

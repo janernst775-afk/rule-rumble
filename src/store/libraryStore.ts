@@ -15,6 +15,8 @@ interface LibraryState {
   rules: RuleDefinition[];
   record: (def: RuleDefinition) => void;
   remove: (id: string) => void;
+  /** Adds an own rule or replaces the one with the same id (rule editor). */
+  save: (def: RuleDefinition) => void;
   importJson: (text: string) => { added: number; rejected: number };
 }
 
@@ -58,6 +60,13 @@ export const useLibrary = create<LibraryState>()(
         set((s) => ({ rules: [...s.rules, structuredClone(def)] }));
       },
       remove: (id) => set((s) => ({ rules: s.rules.filter((r) => r.id !== id) })),
+      save: (def) =>
+        set((s) => {
+          const copy = structuredClone(def);
+          return s.rules.some((r) => r.id === def.id)
+            ? { rules: s.rules.map((r) => (r.id === def.id ? copy : r)) }
+            : { rules: [...s.rules, copy] };
+        }),
       importJson: (text) => {
         let parsed: unknown;
         try {
