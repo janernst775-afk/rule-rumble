@@ -1,0 +1,28 @@
+{
+  "app": {
+    "title": "Rule Rumble",
+    "tagline": "Invent the rules. Beat the boss."
+  },
+  "start": {
+    "yourName": "Your name",
+    "createLobby": "Create lobby",
+    "join": "Join",
+    "howTo": "How to play",
+    "library": "Library",
+    "settings": "Settings"
+  },
+  "prefs": {
+    "title": "Settings",
+    "language": "Language",
+    "languages": { "de": "Deutsch", "en": "English" }
+  },
+  "game": {
+    "actions": {
+      "attack": "Attack",
+      "addTile": "Tile +",
+      "removeTile": "Tile −",
+      "addRule": "New rule",
+      "pass": "Pass"
+    }
+  }
+}

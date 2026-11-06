@@ -1,0 +1,302 @@
+{
+  "app": {
+    "title": "Rule Rumble",
+    "tagline": "Erfinde die Regeln. Besiege den Boss.",
+    "footer": "Regeln, Effekte, Texturen & Sounds selbst erfinden",
+    "footerPlayers": "1–4 Helden gegen den Boss"
+  },
+  "common": {
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "close": "Schließen",
+    "back": "Zurück",
+    "on": "an",
+    "off": "aus",
+    "soon": "bald",
+    "fromVersion": "ab {{version}}",
+    "minutes": "≈ {{count}} Minuten",
+    "lives": "{{count}} Leben",
+    "lives_one": "{{count}} Leben",
+    "unlimited": "unbegrenzt",
+    "none": "keins",
+    "decrease": "{{label}} verringern",
+    "increase": "{{label}} erhöhen"
+  },
+  "audio": {
+    "mute": "Ton aus",
+    "unmute": "Ton an",
+    "music": "Musik",
+    "effects": "Effekte"
+  },
+  "prefs": {
+    "title": "Einstellungen",
+    "language": "Sprache",
+    "languages": {
+      "de": "Deutsch",
+      "en": "English"
+    }
+  },
+  "start": {
+    "yourName": "Dein Name",
+    "namePlaceholder": "Name eingeben",
+    "createLobby": "Lobby erstellen",
+    "codePlaceholder": "Code",
+    "join": "Beitreten",
+    "joinSoon": "Online-Beitritt kommt bald – jetzt mit Bots spielen",
+    "howTo": "So geht's",
+    "howToSoon": "Das Tutorial kommt in v0.8.",
+    "library": "Bibliothek",
+    "librarySoon": "Die Bibliothek kommt in v0.3.",
+    "uploadAvatar": "Profilbild hochladen",
+    "pickColor": "Farbe {{color}} wählen",
+    "settings": "Einstellungen"
+  },
+  "avatar": {
+    "cropTitle": "Profilbild zuschneiden",
+    "zoom": "Zoom",
+    "apply": "Übernehmen",
+    "remove": "Bild entfernen",
+    "tooLarge": "Das Bild ist größer als 2 MB.",
+    "wrongType": "Bitte PNG, JPG, GIF oder WebP wählen.",
+    "alt": "Profilbild von {{name}}"
+  },
+  "lobby": {
+    "players": "Spieler",
+    "code": "Lobby-Code",
+    "host": "Host",
+    "you": "Du",
+    "bot": "Bot",
+    "freeSeat": "freier Platz",
+    "addBot": "+ Bot",
+    "addBotAs": "Bot hinzufügen als",
+    "invite": "Einladen",
+    "inviteHint": "Einladen per Link · online bald verfügbar",
+    "removeSeat": "{{name}} entfernen",
+    "makeBoss": "Zum Boss machen",
+    "makeHero": "Zum Helden machen",
+    "difficulty": "Schwierigkeit",
+    "templates": "Vorlagen",
+    "customSettings": "Eigene Einstellungen",
+    "basedOn": "Basis: {{template}} · {{count}} Werte geändert",
+    "basedOn_one": "Basis: {{template}} · {{count}} Wert geändert",
+    "basedOnUnchanged": "Basis: {{template}}",
+    "saveTemplate": "Als Vorlage speichern",
+    "templateName": "Name der Vorlage",
+    "myTemplates": "Meine Vorlagen",
+    "deleteTemplate": "Vorlage {{name}} löschen",
+    "configureTemplate": "Einstellungen von {{name}} öffnen",
+    "start": "Start",
+    "back": "Zurück zum Start",
+    "error": {
+      "noHero": "Mindestens ein Held wird gebraucht.",
+      "tooManyHeroes": "Höchstens vier Helden.",
+      "needExactlyOneBoss": "Es braucht genau einen Boss."
+    },
+    "roles": {
+      "hero": "Held",
+      "boss": "Boss"
+    },
+    "difficulties": {
+      "easy": "Leicht",
+      "normal": "Normal",
+      "hard": "Schwer"
+    }
+  },
+  "templates": {
+    "classic": { "name": "Klassisch", "desc": "Alle Standardwerte." },
+    "chaos": { "name": "Chaos", "desc": "10 Regeln, mehr NPCs, Rad 40–60 %, häufig PvP." },
+    "tactics": { "name": "Taktik", "desc": "4 Regeln, kein Zufall in Regeln, kleineres Brett." },
+    "quick": { "name": "Schnell", "desc": "Kleines Brett, 20 s Zugzeit, Boss mit weniger Leben." },
+    "builder": {
+      "name": "Baumeister",
+      "desc": "Feld-Aktionen zählen doppelt, Brett bis 100 Felder."
+    },
+    "solo": { "name": "Solo", "desc": "Ein Held gegen den Boss, Comeback an." },
+    "custom": { "name": "Eigene" }
+  },
+  "settings": {
+    "groups": {
+      "rules": "Regeln",
+      "board": "Brett",
+      "figures": "Figuren & Kampf",
+      "npcs": "NPCs",
+      "tempo": "Tempo & Zugzeit",
+      "bots": "Bots"
+    },
+    "maxActive": "Max. aktive Regeln",
+    "overflow": "Wenn das Maximum erreicht ist",
+    "overflowOptions": {
+      "dropOldest": "Älteste fällt weg",
+      "authorChooses": "Ersteller wählt",
+      "blockNew": "Neue blockiert",
+      "vote": "Abstimmung"
+    },
+    "activationDelay": "Neue Regel aktiv ab",
+    "activationOptions": {
+      "0": "sofort",
+      "1": "nächster Runde",
+      "2": "in 2 Runden"
+    },
+    "proCode": "Profi-Code erlaubt",
+    "ruleDamage": "Regel-Schaden / Runde",
+    "allowRandom": "Zufall in Regeln",
+    "startSize": "Startgröße",
+    "minTiles": "Min. Felder",
+    "maxTiles": "Max. Felder",
+    "customTextures": "Eigene Texturen",
+    "tileActions": "Feld-Aktionen pro Aktion",
+    "heroHp": "Helden-Leben",
+    "bossHp": "Boss-Leben",
+    "bossHpModes": {
+      "perHero": "× Helden",
+      "fixed": "fest"
+    },
+    "bossHpPerHero": "Boss-Leben pro Held",
+    "bossHpSolo": "Boss-Leben im Solo",
+    "bossHpFixed": "Boss-Leben (fest)",
+    "heroMove": "Bewegung Held",
+    "bossMove": "Bewegung Boss",
+    "wheelChance": "Rad-Chance",
+    "wheelSpread": "Rad-Schwankung (±)",
+    "friendlyFire": "Helden dürfen sich angreifen",
+    "comeback": "Comeback bei 1 Leben",
+    "maxNpcs": "Max. NPCs",
+    "spawnsPerRound": "Spawns pro Runde",
+    "turnTime": "Zugzeit",
+    "turnTimeUnlimited": "unbegrenzt",
+    "roundLimit": "Rundenlimit",
+    "roundLimitOutcome": "Danach",
+    "roundLimitOutcomes": {
+      "boss": "Boss gewinnt",
+      "draw": "Unentschieden"
+    },
+    "botSpeed": "Bot-Tempo",
+    "botSpeeds": {
+      "fast": "schnell",
+      "normal": "normal",
+      "slow": "langsam"
+    },
+    "heroChaos": "Chaos-Wert (Helden greifen Helden an)",
+    "seconds": "{{count}} s",
+    "percent": "{{count}} %",
+    "rounds": "{{count}} Runden"
+  },
+  "game": {
+    "round": "Runde {{round}}",
+    "onTurn": "{{name}} ist am Zug",
+    "phaseMove": "1 Bewegen",
+    "phaseAction": "2 Aktion wählen",
+    "phaseMoveHint": "Bewege dich",
+    "phaseActionHint": "Wähle eine Aktion",
+    "botThinking": "{{name}} überlegt …",
+    "tiles": "{{count}} / {{max}} Felder",
+    "menu": "Menü",
+    "leave": "Spiel verlassen",
+    "leaveConfirm": "Spiel wirklich verlassen?",
+    "players": "Spieler",
+    "expandPlayers": "Spieler-Leiste ausklappen",
+    "collapsePlayers": "Spieler-Leiste einklappen",
+    "activeRules": "Aktive Regeln",
+    "rulesShort": "Regeln",
+    "expandRules": "Regel-Leiste ausklappen",
+    "collapseRules": "Regel-Leiste einklappen",
+    "noRules": "Noch keine Regeln. Regeln kommen in v0.3.",
+    "log": "Verlauf",
+    "zoomIn": "Hineinzoomen",
+    "zoomOut": "Herauszoomen",
+    "center": "Zentrieren",
+    "confirmMove": "Bewegung bestätigen (Enter)",
+    "resetMove": "Zurücksetzen",
+    "stay": "Stehen bleiben",
+    "timeLeft": "{{count}} s",
+    "chooseTarget": "Wen greifst du an?",
+    "boardLabel": "Spielbrett",
+    "tile": "Feld {{label}}",
+    "tileEmpty": "leer",
+    "tileTypes": {
+      "normal": "Normal",
+      "lava": "Lava",
+      "eis": "Eis",
+      "heilquelle": "Heilquelle",
+      "falle": "Falle"
+    },
+    "tileInfoRules": "Wirkt hier: –",
+    "dead": "ausgeschieden",
+    "actions": {
+      "attack": "Angreifen",
+      "addTile": "Feld +",
+      "removeTile": "Feld −",
+      "addRule": "Neue Regel",
+      "pass": "Passen"
+    }
+  },
+  "reason": {
+    "gameOver": "Das Spiel ist vorbei.",
+    "noTarget": "Niemand steht auf deinem Feld.",
+    "friendlyFireOff": "Helden dürfen sich in diesem Spiel nicht angreifen.",
+    "fromV02": "Feld-Aktionen kommen in v0.2.",
+    "fromV03": "Regeln kommen in v0.3.",
+    "notYourTurn": "Du bist nicht am Zug.",
+    "movePhase": "Erst bewegen (oder stehen bleiben)."
+  },
+  "wheel": {
+    "attacks": "{{attacker}} greift {{target}} an!",
+    "vs": "VS",
+    "hit": "Treffer",
+    "miss": "Daneben",
+    "hitInfo": "Treffer: −1 Leben",
+    "chance": "Chance {{count}} %",
+    "noShield": "Kein Schild",
+    "shield": "Schild",
+    "spin": "Drehen!",
+    "spinHint": "Leertaste dreht",
+    "resultHit": "Treffer! {{target}} verliert 1 Leben.",
+    "resultMiss": "Daneben!",
+    "continue": "Weiter"
+  },
+  "log": {
+    "roundStarted": "Runde {{round}} beginnt.",
+    "moved": "{{figure}} geht nach {{tile}}.",
+    "hit": "{{attacker}} trifft {{target}} ({{chance}} %).",
+    "miss": "{{attacker}} verfehlt {{target}} ({{chance}} %).",
+    "shieldBlocked": "Der Schild von {{figure}} blockt den Treffer.",
+    "died": "{{figure}} ist ausgeschieden.",
+    "passed": "{{figure}} passt.",
+    "gameOver": {
+      "heroes": "Die Helden gewinnen!",
+      "boss": "Der Boss gewinnt!",
+      "draw": "Unentschieden!"
+    }
+  },
+  "toast": {
+    "hit": "{{attacker}} trifft {{target}}!",
+    "miss": "{{attacker}} verfehlt {{target}}.",
+    "died": "{{figure}} ist raus!"
+  },
+  "result": {
+    "heroesWin": "Die Helden gewinnen!",
+    "bossWins": "Der Boss gewinnt!",
+    "draw": "Unentschieden!",
+    "reasons": {
+      "bossDied": "Der Boss wurde besiegt.",
+      "heroesDied": "Alle Helden sind ausgeschieden.",
+      "simultaneous": "Der letzte Held und der Boss fielen gleichzeitig.",
+      "roundLimit": "Das Rundenlimit ist erreicht."
+    },
+    "winners": "Gewinner",
+    "rounds": "Gespielte Runden: {{count}}",
+    "stats": "Statistik",
+    "statsCols": {
+      "player": "Spieler",
+      "attacks": "Angriffe",
+      "hits": "Treffer",
+      "damageDealt": "Schaden ausgeteilt",
+      "damageTaken": "Schaden erlitten",
+      "tilesMoved": "Felder gelaufen",
+      "lives": "Leben"
+    },
+    "album": "Regel-Album kommt in v0.8.",
+    "again": "Nochmal",
+    "toStart": "Zum Startbildschirm"
+  }
+}
