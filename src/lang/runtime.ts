@@ -141,6 +141,7 @@ function runRule(bus: Bus, rule: ActiveRule, ctx: RuleContext): void {
   state.log.push({ round: state.round, key: 'log.ruleFired', params: { rule: ast.name } });
   bus.events.push({ type: 'ruleFired', rule: rule.id, name: ast.name });
   bus.depth += 1;
+  bus.causes.push(rule.id);
   try {
     for (const effect of branch) {
       if (state.status !== 'playing') return;
@@ -153,6 +154,7 @@ function runRule(bus: Bus, rule: ActiveRule, ctx: RuleContext): void {
     }
   } finally {
     bus.depth -= 1;
+    bus.causes.pop();
   }
 }
 

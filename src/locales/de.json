@@ -465,10 +465,8 @@
     "lava-brennt": "Wer ein Lavafeld betritt, verliert 1 Leben.",
     "glatteis": "Alle 2 Runden friert ein zufälliges leeres Feld zu Eis.",
     "eis-rutscht": "Wer auf Eis tritt, rutscht ein Feld in Laufrichtung weiter.",
-    "heilquelle": "Alle 4 Runden entspringt auf einem leeren Feld eine Heilquelle.",
     "quellwasser": "Wer seinen Zug auf einer Heilquelle beendet, bekommt 1 Leben zurück.",
     "tueckisches-neuland": "Neu angelegte Felder sind mit 50 % Chance eine Falle.",
-    "falle": "Wer in eine Falle tritt, setzt einen Zug aus. Die Falle ist danach verbraucht.",
     "erdbeben": "Alle 3 Runden bebt die Erde und ein zufälliges leeres Feld verschwindet.",
     "gluecksspiel": "Geht ein Angriff daneben: 50 % Chance auf 1 Schaden für den Angreifer, sonst +10 % Rad-Chance für eine Runde. Gilt 5 Runden.",
     "rueckenwind": "Wer trifft, bewegt sich in der nächsten Runde ein Feld weiter.",
@@ -477,8 +475,10 @@
     "seelen-einloesen": "Wer zu Zugbeginn 3 Seelen hat, tauscht sie gegen 1 Leben.",
     "teleport-chaos": "Zu Zugbeginn wird man mit 15 % Chance auf ein zufälliges Feld teleportiert.",
     "schutzengel": "Zu jedem Rundenbeginn bekommt eine zufällige Figur einen Schild gegen den nächsten Treffer.",
-    "sumpf": "Felder mit der Textur „Sumpf“ bremsen: Wer sie betritt, hat eine Runde lang 1 Bewegung weniger.",
-    "flut": "Am Rundenende steigt die Flut. Nach 4 Runden reißt sie ein leeres Feld weg und beginnt von vorn."
+    "heilquelle-entspringt": "Alle 4 Runden entspringt auf einem leeren Feld eine Heilquelle.",
+    "falle-schnappt-zu": "Wer in eine Falle tritt, setzt einen Zug aus. Die Falle ist danach verbraucht.",
+    "sumpfig": "Felder mit der Textur „Sumpf“ bremsen: Wer sie betritt, hat eine Runde lang 1 Bewegung weniger.",
+    "die-flut": "Am Rundenende steigt die Flut. Nach 4 Runden reißt sie ein leeres Feld weg und beginnt von vorn."
   },
   "library": {
     "title": "Regel-Bibliothek",

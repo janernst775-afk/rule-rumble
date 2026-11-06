@@ -1,0 +1,103 @@
+# Startbibliothek (SPEC 5.5) – wird beim Start geparst.
+# Jede Regel bekommt ihre ID aus dem Namen (start.<name>).
+
+REGEL "Zombie-Land"
+WENN BETRITT neues_feld
+UND ZUFALL 30%
+DANN SPAWNE zombie AUF feld
+LIMIT 1 PRO RUNDE
+
+REGEL "Geisterstunde"
+WENN ALLE 5 RUNDEN
+DANN ZEIGE "Die Geisterstunde schlägt!"
+DANN SPAWNE zombie AUF zufälliges_leeres_feld
+
+REGEL "Lava steigt"
+WENN ALLE 3 RUNDEN
+DANN MACHE zufälliges_feld ZU lava
+
+REGEL "Lava brennt"
+WENN BETRITT feld
+UND feld.typ = lava
+DANN SCHADEN auslöser 1
+
+REGEL "Glatteis"
+WENN ALLE 2 RUNDEN
+DANN MACHE zufälliges_leeres_feld ZU eis
+
+REGEL "Eis rutscht"
+WENN BETRITT feld
+UND feld.typ = eis
+DANN SCHIEBE auslöser WEG_VON von_feld 1
+
+REGEL "Heilquelle entspringt"
+WENN ALLE 4 RUNDEN
+DANN MACHE zufälliges_leeres_feld ZU heilquelle
+
+REGEL "Quellwasser"
+WENN ZUGENDE
+UND auslöser.feld.typ = heilquelle
+DANN HEILE auslöser 1
+
+REGEL "Tückisches Neuland"
+WENN FELD_NEU
+UND ZUFALL 50%
+DANN MACHE feld ZU falle
+
+REGEL "Falle schnappt zu"
+WENN BETRITT feld
+UND feld.typ = falle
+DANN AUSSETZEN auslöser 1
+DANN MACHE feld ZU normal
+
+REGEL "Erdbeben"
+WENN ALLE 3 RUNDEN
+DANN ZEIGE "Die Erde bebt!"
+DANN ENTFERNE zufälliges_leeres_feld
+
+REGEL "Glücksspiel"
+WENN FEHLSCHLAG
+UND ZUFALL 50%
+DANN SCHADEN angreifer 1
+SONST RADCHANCE angreifer +10% FÜR 1 RUNDE
+DAUER 5 RUNDEN
+
+REGEL "Rückenwind"
+WENN TREFFER
+DANN BEWEGUNG angreifer +1 FÜR 1 RUNDE
+
+REGEL "Rückstoß"
+WENN TREFFER
+DANN SCHIEBE ziel WEG_VON angreifer.feld 1
+
+REGEL "Seelensammler"
+WENN STIRBT
+DANN SETZE nachbarn.seelen + 1
+
+REGEL "Seelen einlösen"
+WENN ZUGSTART
+UND auslöser.seelen >= 3
+DANN HEILE auslöser 1
+DANN SETZE auslöser.seelen = 0
+
+REGEL "Teleport-Chaos"
+WENN ZUGSTART
+UND ZUFALL 15%
+DANN TELEPORT auslöser ZUFÄLLIG
+
+REGEL "Schutzengel"
+WENN RUNDENSTART
+DANN SCHILD zufällige_figur 1
+
+REGEL "Sumpfig"
+WENN BETRITT feld
+UND feld.textur = "Sumpf"
+DANN BEWEGUNG auslöser -1 FÜR 1 RUNDE
+
+REGEL "Die Flut"
+WENN RUNDENENDE
+UND welt.flut >= 4
+DANN ZEIGE "Die Flut kommt!"
+DANN ENTFERNE zufälliges_leeres_feld
+DANN SETZE welt.flut = 0
+SONST SETZE welt.flut + 1
