@@ -1,7 +1,17 @@
 // Synthesized sound effects.
 
 export type SfxId =
-  'click' | 'step' | 'tick' | 'hit' | 'miss' | 'damage' | 'death' | 'victory' | 'defeat';
+  | 'click'
+  | 'step'
+  | 'tick'
+  | 'hit'
+  | 'miss'
+  | 'damage'
+  | 'death'
+  | 'victory'
+  | 'defeat'
+  | 'tileAdd'
+  | 'tileRemove';
 
 interface Tone {
   type: OscillatorType;
@@ -125,6 +135,21 @@ export function playSynthSfx(ctx: AudioContext, out: AudioNode, id: SfxId): void
         volume: 0.3,
       });
       noise(ctx, out, t + 0.1, 0.4, 0.1, 600);
+      break;
+    case 'tileAdd':
+      tone(ctx, out, t, {
+        type: 'triangle',
+        from: 330,
+        to: 660,
+        start: 0,
+        duration: 0.12,
+        volume: 0.25,
+      });
+      tone(ctx, out, t, { type: 'triangle', from: 660, start: 0.1, duration: 0.1, volume: 0.2 });
+      break;
+    case 'tileRemove':
+      noise(ctx, out, t, 0.25, 0.25, 900);
+      tone(ctx, out, t, { type: 'sine', from: 260, to: 70, start: 0, duration: 0.3, volume: 0.25 });
       break;
     case 'victory':
       [NOTES.C5, NOTES.E5, NOTES.G5, NOTES.C6].forEach((f, i) =>

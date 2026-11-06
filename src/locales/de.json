@@ -103,16 +103,33 @@
     }
   },
   "templates": {
-    "classic": { "name": "Klassisch", "desc": "Alle Standardwerte." },
-    "chaos": { "name": "Chaos", "desc": "10 Regeln, mehr NPCs, Rad 40–60 %, häufig PvP." },
-    "tactics": { "name": "Taktik", "desc": "4 Regeln, kein Zufall in Regeln, kleineres Brett." },
-    "quick": { "name": "Schnell", "desc": "Kleines Brett, 20 s Zugzeit, Boss mit weniger Leben." },
+    "classic": {
+      "name": "Klassisch",
+      "desc": "Alle Standardwerte."
+    },
+    "chaos": {
+      "name": "Chaos",
+      "desc": "10 Regeln, mehr NPCs, Rad 40–60 %, häufig PvP."
+    },
+    "tactics": {
+      "name": "Taktik",
+      "desc": "4 Regeln, kein Zufall in Regeln, kleineres Brett."
+    },
+    "quick": {
+      "name": "Schnell",
+      "desc": "Kleines Brett, 20 s Zugzeit, Boss mit weniger Leben."
+    },
     "builder": {
       "name": "Baumeister",
       "desc": "Feld-Aktionen zählen doppelt, Brett bis 100 Felder."
     },
-    "solo": { "name": "Solo", "desc": "Ein Held gegen den Boss, Comeback an." },
-    "custom": { "name": "Eigene" }
+    "solo": {
+      "name": "Solo",
+      "desc": "Ein Held gegen den Boss, Comeback an."
+    },
+    "custom": {
+      "name": "Eigene"
+    }
   },
   "settings": {
     "groups": {
@@ -228,16 +245,28 @@
       "removeTile": "Feld −",
       "addRule": "Neue Regel",
       "pass": "Passen"
-    }
+    },
+    "addTileHint": "Wähle einen gestrichelten Platz für das neue Feld (Esc bricht ab)",
+    "removeTileHint": "Wähle ein leeres Feld zum Entfernen (Esc bricht ab)",
+    "secondTileActionHint": "Noch eine Feld-Aktion möglich – oder passen",
+    "addTileAt": "Neues Feld auf {{label}} anlegen",
+    "textureBy": "{{name}} · Textur von {{author}}"
   },
   "reason": {
     "gameOver": "Das Spiel ist vorbei.",
     "noTarget": "Niemand steht auf deinem Feld.",
     "friendlyFireOff": "Helden dürfen sich in diesem Spiel nicht angreifen.",
-    "fromV02": "Feld-Aktionen kommen in v0.2.",
     "fromV03": "Regeln kommen in v0.3.",
     "notYourTurn": "Du bist nicht am Zug.",
-    "movePhase": "Erst bewegen (oder stehen bleiben)."
+    "movePhase": "Erst bewegen (oder stehen bleiben).",
+    "tileActionsUsed": "Du hast keine Feld-Aktion mehr in diesem Zug.",
+    "tileActionStarted": "Nach einer Feld-Aktion kannst du nicht mehr angreifen.",
+    "maxTiles": "Das Brett hat schon die maximale Anzahl Felder.",
+    "minTiles": "Das Brett hat schon die minimale Anzahl Felder.",
+    "noRemovable": "Kein Feld kann gerade entfernt werden.",
+    "tileOccupied": "Auf diesem Feld steht jemand.",
+    "wouldDisconnect": "Das Brett würde in Teile zerfallen.",
+    "noTile": "Hier ist kein Feld."
   },
   "wheel": {
     "attacks": "{{attacker}} greift {{target}} an!",
@@ -266,7 +295,9 @@
       "heroes": "Die Helden gewinnen!",
       "boss": "Der Boss gewinnt!",
       "draw": "Unentschieden!"
-    }
+    },
+    "tileAdded": "{{figure}} legt Feld {{tile}} an.",
+    "tileRemoved": "{{figure}} entfernt Feld {{tile}}."
   },
   "toast": {
     "hit": "{{attacker}} trifft {{target}}!",
@@ -293,10 +324,53 @@
       "damageDealt": "Schaden ausgeteilt",
       "damageTaken": "Schaden erlitten",
       "tilesMoved": "Felder gelaufen",
-      "lives": "Leben"
+      "lives": "Leben",
+      "tilesAdded": "Felder angelegt",
+      "tilesRemoved": "Felder entfernt"
     },
     "album": "Regel-Album kommt in v0.8.",
     "again": "Nochmal",
     "toStart": "Zum Startbildschirm"
+  },
+  "tileDialog": {
+    "title": "Neues Feld",
+    "place": "Platz {{label}}",
+    "tabs": {
+      "draw": "Zeichnen",
+      "upload": "Bild hochladen",
+      "library": "Meine Texturen"
+    },
+    "canvas": "Zeichenfläche 128 × 128",
+    "colors": "Farben",
+    "customColor": "Eigene Farbe",
+    "seamless": "Nahtlos-Vorschau",
+    "onBoard": "Auf dem Brett",
+    "name": "Name der Textur (Regeln können ihn abfragen)",
+    "namePlaceholder": "z. B. Sumpf",
+    "nameRequired": "Gib der Textur einen Namen.",
+    "saveToLibrary": "In meine Textur-Bibliothek speichern",
+    "plainHint": "Ohne Bild wird ein einfarbiges Feld angelegt.",
+    "create": "Feld anlegen",
+    "chooseFile": "Bild auswählen",
+    "uploadHint": "PNG, JPG, GIF oder WebP bis 2 MB. Es wird quadratisch zugeschnitten und auf 128 × 128 verkleinert.",
+    "useImage": "Bild übernehmen",
+    "emptyLibrary": "Noch keine Texturen gespeichert. Zeichne eine oder lade ein Bild hoch.",
+    "removeFromLibrary": "{{name}} aus der Bibliothek entfernen",
+    "tools": {
+      "label": "Werkzeuge",
+      "brush": "Pinsel",
+      "eraser": "Radierer",
+      "fill": "Fülleimer",
+      "picker": "Pipette",
+      "undo": "Rückgängig",
+      "redo": "Wiederholen",
+      "grid": "Raster ein/aus",
+      "size": "Pinselgröße",
+      "sizes": {
+        "0": "Pinsel klein",
+        "1": "Pinsel mittel",
+        "2": "Pinsel groß"
+      }
+    }
   }
 }

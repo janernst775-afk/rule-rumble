@@ -39,7 +39,6 @@ interface Props {
 /** "Eigene Einstellungen" (SPEC 2.2). Values that only take effect later are shown but disabled. */
 export function SettingsPanel({ settings, onChange }: Props) {
   const { t } = useTranslation();
-  const v02 = t('common.fromVersion', { version: 'v0.2' });
   const v03 = t('common.fromVersion', { version: 'v0.3' });
   const v06 = t('common.fromVersion', { version: 'v0.6' });
 
@@ -131,17 +130,16 @@ export function SettingsPanel({ settings, onChange }: Props) {
               onChange={(v) => update((x) => (x.board.startSize = v))}
             />
           </SettingRow>
-          <SettingRow label={t('settings.minTiles')} badge={v02} disabled>
+          <SettingRow label={t('settings.minTiles')}>
             <Stepper
               label={t('settings.minTiles')}
               value={s.board.minTiles}
               min={L.tiles.min}
               max={L.tiles.max}
               onChange={(v) => update((x) => (x.board.minTiles = v))}
-              disabled
             />
           </SettingRow>
-          <SettingRow label={t('settings.maxTiles')} badge={v02} disabled>
+          <SettingRow label={t('settings.maxTiles')}>
             <Stepper
               label={t('settings.maxTiles')}
               value={s.board.maxTiles}
@@ -149,24 +147,21 @@ export function SettingsPanel({ settings, onChange }: Props) {
               max={L.tiles.max}
               step={5}
               onChange={(v) => update((x) => (x.board.maxTiles = v))}
-              disabled
             />
           </SettingRow>
-          <SettingRow label={t('settings.customTextures')} badge={v02} disabled>
+          <SettingRow label={t('settings.customTextures')}>
             <Toggle
               label={t('settings.customTextures')}
               checked={s.board.customTextures}
               onChange={(v) => update((x) => (x.board.customTextures = v))}
-              disabled
             />
           </SettingRow>
-          <SettingRow label={t('settings.tileActions')} badge={v02} disabled>
+          <SettingRow label={t('settings.tileActions')}>
             <Segmented
               label={t('settings.tileActions')}
               value={s.board.tileActionsPerAction}
               options={([1, 2] as const).map((o) => ({ value: o, label: `${o}×` }))}
               onChange={(v) => update((x) => (x.board.tileActionsPerAction = v))}
-              disabled
             />
           </SettingRow>
         </Group>

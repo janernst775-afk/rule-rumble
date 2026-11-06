@@ -64,6 +64,8 @@ export function ResultScreen() {
               <th scope="col">{t('result.statsCols.damageDealt')}</th>
               <th scope="col">{t('result.statsCols.damageTaken')}</th>
               <th scope="col">{t('result.statsCols.tilesMoved')}</th>
+              <th scope="col">{t('result.statsCols.tilesAdded')}</th>
+              <th scope="col">{t('result.statsCols.tilesRemoved')}</th>
             </tr>
           </thead>
           <tbody>
@@ -85,6 +87,8 @@ export function ResultScreen() {
                   <td>{s.damageDealt}</td>
                   <td>{s.damageTaken}</td>
                   <td>{s.tilesMoved}</td>
+                  <td>{s.tilesAdded}</td>
+                  <td>{s.tilesRemoved}</td>
                 </tr>
               );
             })}

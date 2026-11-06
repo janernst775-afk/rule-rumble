@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { playSfx, setMusic } from '../../audio/audio';
-import { DIRECTIONS, hasTile, samePos, tileKey } from '../../engine/board';
+import { DIRECTIONS, hasTile, parseKey, samePos, tileKey, tileLabel } from '../../engine/board';
+import { removeTileError, validAddPositions } from '../../engine/tiles';
 import {
   actionAvailability,
   attackTargets,
@@ -11,10 +12,11 @@ import {
   effectiveMove,
   moveOptions,
 } from '../../engine/query';
-import type { ActionType, Figure, Pos } from '../../engine/types';
+import type { ActionType, Figure, Pos, TileKey } from '../../engine/types';
 import { useApp } from '../../store/appStore';
 import { useGame } from '../../store/gameStore';
 import { usePrefs } from '../../store/prefsStore';
+import { useTextures } from '../../store/textureStore';
 import { MuteButton } from '../components/AudioControls';
 import { Avatar } from '../components/Avatar';
 import { Board } from '../components/Board';
@@ -22,6 +24,7 @@ import { Dialog } from '../components/Dialog';
 import { PlayersPanel, RulesPanel } from '../components/GamePanels';
 import { MenuIcon } from '../components/Icons';
 import { PrefsDialog } from '../components/PrefsDialog';
+import { TileDialog, type TileDialogResult } from '../components/TileDialog';
 import { Wheel } from '../components/Wheel';
 import { displayParams, isHumanTurn } from '../gameUi';
 import { useBotDriver } from '../useBotDriver';
@@ -35,6 +38,8 @@ const ACTIONS: { type: ActionType; key: string; className: string }[] = [
 ];
 
 const HUMAN_STEP_MS = 160;
+
+type TileMode = 'none' | 'add' | 'remove';
 
 export function GameScreen() {
   const { t } = useTranslation();
@@ -50,6 +55,8 @@ export function GameScreen() {
   const setScreen = useApp((s) => s.setScreen);
   const rightOpen = usePrefs((s) => s.rightPanelOpen);
   const setRightOpen = usePrefs((s) => s.setRightPanelOpen);
+  const textures = useTextures((s) => s.textures);
+  const saveTexture = useTextures((s) => s.save);
 
   const [planState, setPlanState] = useState<{ key: string; path: Pos[] }>({ key: '', path: [] });
   const [targetState, setTargetState] = useState<{ key: string; targets: Figure[] } | null>(null);
@@ -57,6 +64,11 @@ export function GameScreen() {
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [clock, setClock] = useState({ key: '', start: 0, now: 0 });
+  const [tileModeState, setTileModeState] = useState<{ key: string; mode: TileMode }>({
+    key: '',
+    mode: 'none',
+  });
+  const [dialogState, setDialogState] = useState<{ key: string; pos: Pos } | null>(null);
 
   useBotDriver();
 
@@ -65,6 +77,15 @@ export function GameScreen() {
   const busy = wheel !== null || anim !== null;
   const canAct = human && !busy;
   const turnKey = game ? `${game.round}:${game.turn.index}` : '';
+  // Tile mode resets after each tile action (Baumeister allows a second one).
+  const tileKeyOfTurn = game ? `${turnKey}:${game.turn.tileActionsUsed}` : '';
+  const tileMode: TileMode =
+    canAct && tileModeState.key === tileKeyOfTurn ? tileModeState.mode : 'none';
+  const setTileMode = useCallback(
+    (mode: TileMode) => setTileModeState({ key: tileKeyOfTurn, mode }),
+    [tileKeyOfTurn],
+  );
+  const dialogPos = dialogState?.key === tileKeyOfTurn && canAct ? dialogState.pos : null;
 
   // Plan and target choice belong to one turn; they reset implicitly when the turn changes.
   const plan = useMemo(
@@ -82,6 +103,20 @@ export function GameScreen() {
     () => (game && me && canAct && game.turn.phase === 'move' ? moveOptions(game, me.id) : null),
     [game, me, canAct],
   );
+
+  const addPositions = useMemo(
+    () => (game && tileMode === 'add' ? validAddPositions(game) : []),
+    [game, tileMode],
+  );
+  const removeReasons = useMemo(() => {
+    const map = new Map<TileKey, string | null>();
+    if (!game || tileMode !== 'remove') return map;
+    for (const key of Object.keys(game.tiles)) {
+      const error = removeTileError(game, parseKey(key));
+      map.set(key, error ? `reason.${error}` : null);
+    }
+    return map;
+  }, [game, tileMode]);
 
   // Music: game loop, boss phase under 30 % boss hp.
   const bossFig = game ? boss(game) : undefined;
@@ -127,6 +162,12 @@ export function GameScreen() {
       }
       if (game.turn.phase !== 'action') return;
       if (!actionAvailability(game, type).available) return;
+      if (type === 'addTile' || type === 'removeTile') {
+        const mode = type === 'addTile' ? 'add' : 'remove';
+        playSfx('click');
+        setTileMode(tileMode === mode ? 'none' : mode);
+        return;
+      }
       if (type === 'attack') {
         const targets = attackTargets(game, me.id);
         if (targets.length === 1 && targets[0])
@@ -134,7 +175,7 @@ export function GameScreen() {
         else if (targets.length > 1) setTargetChoice(targets);
       }
     },
-    [game, me, canAct, dispatch, openWheel, setTargetChoice],
+    [game, me, canAct, dispatch, openWheel, setTargetChoice, tileMode, setTileMode],
   );
 
   // Turn timer (UI only; the engine never reads the clock).
@@ -169,7 +210,11 @@ export function GameScreen() {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
-      if (wheel || menuOpen || prefsOpen || targetChoice || confirmLeave) return;
+      if (wheel || menuOpen || prefsOpen || targetChoice || confirmLeave || dialogPos) return;
+      if (e.key === 'Escape' && tileMode !== 'none') {
+        setTileMode('none');
+        return;
+      }
       if (e.key.toLowerCase() === 'r' && !e.ctrlKey && !e.metaKey) {
         setRightOpen(!rightOpen);
         return;
@@ -216,6 +261,9 @@ export function GameScreen() {
     prefsOpen,
     targetChoice,
     confirmLeave,
+    dialogPos,
+    tileMode,
+    setTileMode,
     rightOpen,
     setRightOpen,
     doAction,
@@ -225,6 +273,13 @@ export function GameScreen() {
   if (!game) return null;
 
   const onTileClick = (pos: Pos) => {
+    if (tileMode === 'remove' && me) {
+      if (removeReasons.get(tileKey(pos)) === null) {
+        playSfx('tileRemove');
+        dispatch({ type: 'removeTile', actor: me.id, pos });
+      }
+      return;
+    }
     if (!reachable) return;
     const path = reachable.get(tileKey(pos));
     if (!path) return;
@@ -239,6 +294,24 @@ export function GameScreen() {
 
   const participant = me ? game.participants[me.id] : undefined;
   const tilesCount = Object.keys(game.tiles).length;
+
+  const onPlaceholderClick = (pos: Pos) => {
+    if (!me) return;
+    if (game.settings.board.customTextures) {
+      setDialogState({ key: tileKeyOfTurn, pos });
+    } else {
+      playSfx('tileAdd');
+      dispatch({ type: 'addTile', actor: me.id, pos, textureId: null });
+    }
+  };
+
+  const onTileCreated = (pos: Pos, result: TileDialogResult) => {
+    if (!me) return;
+    if (result.texture && result.isNew) void saveTexture(result.texture);
+    setDialogState(null);
+    playSfx('tileAdd');
+    dispatch({ type: 'addTile', actor: me.id, pos, textureId: result.texture?.id ?? null });
+  };
 
   const leave = () => {
     clearGame();
@@ -332,7 +405,13 @@ export function GameScreen() {
           (human
             ? game.turn.phase === 'move'
               ? t('game.phaseMoveHint')
-              : t('game.phaseActionHint')
+              : tileMode === 'add'
+                ? t('game.addTileHint')
+                : tileMode === 'remove'
+                  ? t('game.removeTileHint')
+                  : game.turn.tileActionsUsed > 0
+                    ? t('game.secondTileActionHint')
+                    : t('game.phaseActionHint')
             : t('game.botThinking', { name: participant?.name ?? '' }))}
       </div>
 
@@ -352,6 +431,12 @@ export function GameScreen() {
             reachable={reachable}
             plan={plan}
             onTileClick={onTileClick}
+            tileMode={tileMode}
+            addPositions={addPositions}
+            removeReasons={removeReasons}
+            textures={textures}
+            showTextures={game.settings.board.customTextures}
+            onPlaceholderClick={onPlaceholderClick}
           />
           {canAct && game.turn.phase === 'move' && (
             <div className="move-controls">
@@ -395,6 +480,13 @@ export function GameScreen() {
                 className={`btn action-btn ${a.className}`}
                 disabled={disabled}
                 aria-keyshortcuts={a.key}
+                aria-pressed={
+                  a.type === 'addTile'
+                    ? tileMode === 'add'
+                    : a.type === 'removeTile'
+                      ? tileMode === 'remove'
+                      : undefined
+                }
                 aria-describedby={reason ? `reason-${a.type}` : undefined}
                 onClick={() => doAction(a.type)}
               >
@@ -443,6 +535,27 @@ export function GameScreen() {
         />
       )}
       {prefsOpen && <PrefsDialog onClose={() => setPrefsOpen(false)} />}
+      {dialogPos && me && (
+        <TileDialog
+          placeLabel={t('tileDialog.place', {
+            label: tileLabel(
+              {
+                ...game.tiles,
+                [tileKey(dialogPos)]: {
+                  pos: dialogPos,
+                  type: 'normal',
+                  textureId: null,
+                  visitedBy: [],
+                },
+              },
+              dialogPos,
+            ),
+          })}
+          author={participant?.name ?? ''}
+          onCancel={() => setDialogState(null)}
+          onCreate={(result) => onTileCreated(dialogPos, result)}
+        />
+      )}
       {confirmLeave && (
         <Dialog title={t('game.leaveConfirm')} onClose={() => setConfirmLeave(false)}>
           <div className="dialog-actions">

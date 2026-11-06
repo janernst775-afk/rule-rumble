@@ -6,7 +6,15 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { boardBounds, parseKey, samePos, tileKey, tileLabel } from '../../engine/board';
+import {
+  addablePositions,
+  boardBounds,
+  parseKey,
+  samePos,
+  tileKey,
+  tileLabel,
+} from '../../engine/board';
+import type { TextureRecord } from '../../assets/store';
 import type { Figure, GameState, Pos, TileKey } from '../../engine/types';
 import { GAP, PITCH, TILE } from '../gameUi';
 import { initials } from '../avatarUtils';
@@ -19,6 +27,15 @@ interface Props {
   reachable: Map<TileKey, Pos[]> | null;
   plan: Pos[];
   onTileClick: (pos: Pos) => void;
+  /** Tile action mode of the human player. */
+  tileMode: 'none' | 'add' | 'remove';
+  /** Valid positions for "Feld +" (shown as dashed placeholders in add mode). */
+  addPositions: Pos[];
+  /** For remove mode: i18n reason why a tile cannot be removed, null if it can. */
+  removeReasons: Map<TileKey, string | null>;
+  textures: Record<string, TextureRecord>;
+  showTextures: boolean;
+  onPlaceholderClick: (pos: Pos) => void;
 }
 
 interface View {
@@ -50,7 +67,19 @@ function displayPos(fig: Figure, anim: Props['anim']): Pos {
   return anim && anim.figure === fig.id ? anim.pos : fig.pos;
 }
 
-export function Board({ state, anim, reachable, plan, onTileClick }: Props) {
+export function Board({
+  state,
+  anim,
+  reachable,
+  plan,
+  onTileClick,
+  tileMode,
+  addPositions,
+  removeReasons,
+  textures,
+  showTextures,
+  onPlaceholderClick,
+}: Props) {
   const { t } = useTranslation();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ scale: 1, x: 0, y: 0 });
@@ -59,7 +88,22 @@ export function Board({ state, anim, reachable, plan, onTileClick }: Props) {
     null,
   );
 
-  const bounds = boardBounds(state.tiles);
+  // Bounds include the ring of possible new tiles so the board does not jump in add mode.
+  const ring = useMemo(() => addablePositions(state.tiles), [state.tiles]);
+  const bounds = boardBounds({
+    ...state.tiles,
+    ...Object.fromEntries(
+      ring.map((p) => [
+        tileKey(p),
+        { pos: p, type: 'normal' as const, textureId: null, visitedBy: [] },
+      ]),
+    ),
+  });
+  const usedTextures = useMemo(() => {
+    if (!showTextures) return [];
+    const ids = new Set(Object.values(state.tiles).map((t) => t.textureId));
+    return [...ids].filter((id): id is string => !!id && !!textures[id]);
+  }, [state.tiles, textures, showTextures]);
   const width = (bounds.maxX - bounds.minX + 1) * PITCH + GAP;
   const height = (bounds.maxY - bounds.minY + 1) * PITCH + GAP;
   const px = (p: Pos) => (p.x - bounds.minX) * PITCH + GAP;
@@ -166,6 +210,23 @@ export function Board({ state, anim, reachable, plan, onTileClick }: Props) {
                 </pattern>
               ) : null;
             })}
+            {usedTextures.map((id) => (
+              <pattern
+                key={id}
+                id={`tex-${id}`}
+                width="1"
+                height="1"
+                patternContentUnits="objectBoundingBox"
+              >
+                <image
+                  href={textures[id]?.dataUrl}
+                  width="1"
+                  height="1"
+                  preserveAspectRatio="none"
+                  style={{ imageRendering: 'pixelated' }}
+                />
+              </pattern>
+            ))}
           </defs>
 
           {Object.entries(state.tiles).map(([key, tile]) => {
@@ -176,6 +237,11 @@ export function Board({ state, anim, reachable, plan, onTileClick }: Props) {
             const label = tileLabel(state.tiles, pos);
             const classes = ['tile'];
             if (isReach) classes.push('is-reachable');
+            if (tileMode === 'remove') {
+              classes.push(removeReasons.get(key) === null ? 'is-removable' : 'is-blocked');
+            }
+            const texture =
+              showTextures && tile.textureId && textures[tile.textureId] ? tile.textureId : null;
             if (isPlan) classes.push('is-plan');
             if (isEnd) classes.push('is-plan-end');
             const occupants = byTile.get(key) ?? [];
@@ -188,20 +254,44 @@ export function Board({ state, anim, reachable, plan, onTileClick }: Props) {
                 onMouseEnter={(e) => setHover({ key, x: e.clientX, y: e.clientY })}
                 onMouseMove={(e) => setHover({ key, x: e.clientX, y: e.clientY })}
                 onMouseLeave={() => setHover((h) => (h?.key === key ? null : h))}
-                role={isReach ? 'button' : undefined}
+                role={
+                  isReach || (tileMode === 'remove' && removeReasons.get(key) === null)
+                    ? 'button'
+                    : undefined
+                }
                 aria-label={`${t('game.tile', { label })}${occupants.length ? ': ' + occupants.map((f) => state.participants[f.id]?.name ?? f.id).join(', ') : ''}`}
               >
                 <rect className="tile-shadow" x={0} y={5} width={TILE} height={TILE} rx={12} />
-                <rect className="tile-face" x={0} y={0} width={TILE} height={TILE} rx={12} />
                 <rect
+                  className={`tile-face${texture ? ' has-texture' : ''}`}
                   x={0}
                   y={0}
                   width={TILE}
                   height={TILE}
                   rx={12}
-                  fill="url(#tile-dots)"
-                  pointerEvents="none"
+                  style={texture ? { fill: `url(#tex-${texture})` } : undefined}
                 />
+                {!texture && (
+                  <rect
+                    x={0}
+                    y={0}
+                    width={TILE}
+                    height={TILE}
+                    rx={12}
+                    fill="url(#tile-dots)"
+                    pointerEvents="none"
+                  />
+                )}
+                {tileMode === 'remove' && removeReasons.get(key) === null && (
+                  <rect
+                    className="tile-remove-mark"
+                    x={0}
+                    y={0}
+                    width={TILE}
+                    height={TILE}
+                    rx={12}
+                  />
+                )}
                 {tile.type !== 'normal' && (
                   <rect
                     x={2}
@@ -215,6 +305,31 @@ export function Board({ state, anim, reachable, plan, onTileClick }: Props) {
               </g>
             );
           })}
+
+          {tileMode === 'add' &&
+            addPositions.map((pos) => {
+              const label = tileLabel(state.tiles, pos);
+              return (
+                <g
+                  key={`add-${tileKey(pos)}`}
+                  className="tile-placeholder"
+                  transform={`translate(${px(pos)} ${py(pos)})`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={t('game.addTileAt', { label })}
+                  onClick={() => !drag.current?.moved && onPlaceholderClick(pos)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onPlaceholderClick(pos);
+                    }
+                  }}
+                >
+                  <rect x={2} y={2} width={TILE - 4} height={TILE - 4} rx={12} />
+                  <path d={`M${TILE / 2} ${TILE / 2 - 10}v20M${TILE / 2 - 10} ${TILE / 2}h20`} />
+                </g>
+              );
+            })}
 
           {[...byTile.entries()].map(([key, figs]) => {
             const pos = parseKey(key);
@@ -278,7 +393,18 @@ export function Board({ state, anim, reachable, plan, onTileClick }: Props) {
               ? hoverFigures.map((f) => state.participants[f.id]?.name ?? f.id).join(', ')
               : t('game.tileEmpty')}
           </span>
+          {hoverInfo.textureId && textures[hoverInfo.textureId] && (
+            <span>
+              {t('game.textureBy', {
+                name: textures[hoverInfo.textureId]?.name,
+                author: textures[hoverInfo.textureId]?.author,
+              })}
+            </span>
+          )}
           <span>{t('game.tileInfoRules')}</span>
+          {tileMode === 'remove' && removeReasons.get(hover?.key ?? '') && (
+            <span className="tooltip-reason">{t(removeReasons.get(hover?.key ?? '') ?? '')}</span>
+          )}
         </div>
       )}
 
