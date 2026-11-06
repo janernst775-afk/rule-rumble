@@ -64,7 +64,7 @@ Reihenfolge ist verbindlich. Jeder Meilenstein endet mit Bericht und Stopp (sieh
 - [x] Engine-Tests decken Bewegung, Angriff, Zugfolge, Tod und alle Siegbedingungen ab
 - [x] Engine und Bots importieren nichts aus React oder DOM (per ESLint-Regel abgesichert)
 - [x] Alle sichtbaren Texte kommen aus `de.json`
-- [ ] Die Seite ist auf GitHub Pages erreichbar
+- [x] Die Seite ist auf GitHub Pages erreichbar
 
 ---
 
