@@ -2537,3 +2537,282 @@
   background: #fff;
   font-weight: 800;
 }
+
+/* ---------- v0.5: effect workshop ---------- */
+.pal-own {
+  color: var(--violet);
+}
+
+.chip-own {
+  background: var(--lilac-strong);
+}
+
+.call-arg {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.workshop-mode {
+  margin-left: auto;
+  background: #fff;
+}
+
+.workshop-list h3 {
+  margin: 12px 0 6px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.mine-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mine-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 12px;
+  background: var(--lilac);
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mine-item[aria-pressed='true'] {
+  background: var(--primary);
+  box-shadow: 0 0 0 3px var(--ink) inset;
+}
+
+.mine-item:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.mine-symbol {
+  min-width: 22px;
+  text-align: center;
+}
+
+.mine-actions {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workshop-canvas {
+  gap: 8px;
+}
+
+.effect-name {
+  min-width: 220px;
+  font-family: var(--mono);
+}
+
+.effect-symbol {
+  width: 52px;
+  text-align: center;
+}
+
+.stmt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stmt {
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 0 4px 0 var(--ink);
+  padding: 8px 10px;
+}
+
+.stmt.has-error {
+  outline: 3px solid var(--red);
+  outline-offset: 2px;
+}
+
+.stmt-when {
+  background: var(--primary);
+}
+
+.stmt-and {
+  background: #7cc0ff;
+}
+
+.stmt-then {
+  background: #5fd99a;
+}
+
+.stmt-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.stmt-children {
+  margin: 8px 0 2px 22px;
+  padding-left: 10px;
+  border-left: 3px dashed rgba(43, 26, 74, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stmt-else {
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.add-step {
+  align-self: flex-start;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 2px dashed rgba(255, 255, 255, 0.85);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.stmt-children .add-step {
+  border-color: var(--ink);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Nested expressions flow like text so long ones wrap as a whole line, not per part. */
+.expr,
+.expr-args,
+.cond,
+.cond-item {
+  display: inline;
+}
+
+.expr > *,
+.expr-args > *,
+.cond > *,
+.cond-item > * {
+  margin: 2px 4px 2px 0;
+  vertical-align: middle;
+}
+
+.cond-list {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.35);
+  vertical-align: middle;
+}
+
+.var-name {
+  width: 80px;
+  font-family: var(--mono);
+}
+
+.param-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.param-row > input,
+.param-row > select {
+  width: 100%;
+  min-width: 0;
+}
+
+.workshop-errors {
+  margin: 0;
+  padding-left: 18px;
+  color: #c62828;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.diag-ok-dark {
+  margin: 0;
+  color: #1c7a47;
+  font-weight: 800;
+}
+
+.npc-editor {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 20px;
+  padding: 16px;
+  border-radius: 20px;
+  background: #fff;
+}
+
+.npc-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.npc-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.npc-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.npc-symbol {
+  width: 70px;
+  text-align: center;
+}
+
+.npc-colors {
+  grid-template-columns: repeat(7, 32px);
+}
+
+.npc-paint {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.npc-upload {
+  min-height: 200px;
+}
+
+/* Selects size to the chosen option where supported, so nested expressions stay compact. */
+.workshop-canvas select {
+  field-sizing: content;
+}
+
+.npc-row {
+  gap: 24px;
+}
+
+.npc-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.npc-editor .hint {
+  color: var(--ink-soft);
+}

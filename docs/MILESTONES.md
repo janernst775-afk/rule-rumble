@@ -125,11 +125,11 @@ Reihenfolge ist verbindlich. Jeder Meilenstein endet mit Bericht und Stopp (sieh
 
 **Spec lesen:** 5.7, 5.9
 
-- [ ] Effekt-AST mit Parametern und Typen; Steuerbausteine (Wenn/Sonst, Wiederhole, Für jede, zufällige Auswahl, Effekt aufrufen) und Abfragen laut SPEC
-- [ ] `lang/interpreter.ts` mit Schritt-Budget, Rekursionsgrenze, Listen-Grenze
-- [ ] Effekt-Werkstatt-Screen (Bausteine-Ansicht), eigene Effekte in Regeln nutzbar wie eingebaute
-- [ ] Eigene NPC-Typen mit Aussehen (Malprogramm/Upload) und Verhaltensvorlage
-- [ ] Tests: Budget-Abbruch, Grenzen, Parameter-Typen
+- [x] Effekt-AST mit Parametern und Typen; Steuerbausteine (Wenn/Sonst, Wiederhole, Für jede, zufällige Auswahl, Effekt aufrufen) und Abfragen laut SPEC
+- [x] `lang/interpreter.ts` mit Schritt-Budget, Rekursionsgrenze, Listen-Grenze
+- [x] Effekt-Werkstatt-Screen (Bausteine-Ansicht), eigene Effekte in Regeln nutzbar wie eingebaute
+- [x] Eigene NPC-Typen mit Aussehen (Malprogramm/Upload) und Verhaltensvorlage
+- [x] Tests: Budget-Abbruch, Grenzen, Parameter-Typen
 
 **Abnahme:** Das Beispiel „Erdbeben“ aus SPEC 5.7 lässt sich in Bausteinen bauen und in einer Regel nutzen.
 

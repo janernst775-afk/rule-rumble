@@ -23,6 +23,9 @@ import {
   type ConditionTemplate,
 } from './model';
 import { HighlightedRule, TextEditor } from './TextEditor';
+import { EffectWorkshop } from '../workshop/EffectWorkshop';
+import { allNpcTypes, useWorkshop, withBundleFromWorkshop } from '../../store/workshopStore';
+import { mergeById, mergeByName, ruleCallFor } from './model';
 
 const MAX_EFFECTS = 3;
 const DRAG_TYPE = 'application/x-rule-block';
@@ -31,9 +34,10 @@ type PaletteItem =
   | { type: 'trigger'; kind: TriggerKind }
   | { type: 'condition'; kind: ConditionTemplate }
   | { type: 'effect'; kind: EffectKind }
-  | { type: 'meta'; kind: 'duration' | 'limit' };
+  | { type: 'meta'; kind: 'duration' | 'limit' }
+  | { type: 'call'; kind: string };
 
-type Zone = 'when' | 'and' | 'then' | 'else' | 'meta';
+type Zone = 'when' | 'and' | 'then' | 'else' | 'meta' | 'own';
 
 interface Props {
   initial: RuleDefinition | null;
@@ -69,7 +73,15 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
   const { t } = useTranslation();
   const codeLang = useProfile((s) => s.codeLang);
   const settings = game?.settings ?? DEFAULT_SETTINGS;
-  const npcTypes = game?.npcTypes ?? DEFAULT_NPC_TYPES;
+  const ownEffects = useWorkshop((s) => s.effects);
+  const ownNpcs = useWorkshop((s) => s.npcTypes);
+  // Game content plus the player's own effects and NPC types (they travel with the rule).
+  const npcTypes = useMemo(
+    () => mergeById(game?.npcTypes ?? DEFAULT_NPC_TYPES, allNpcTypes(ownNpcs)),
+    [game, ownNpcs],
+  );
+  const effects = useMemo(() => mergeByName(game?.effects ?? [], ownEffects), [game, ownEffects]);
+  const [workshopOpen, setWorkshopOpen] = useState(false);
   const [ast, setAst] = useState<RuleAST>(() =>
     initial ? structuredClone(initial.ast) : emptyRule(t('editor.newRuleName')),
   );
@@ -83,14 +95,14 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
 
   // Text view: the parsed text is the current rule while it is free of syntax errors.
   const textCheck = useMemo(
-    () => (view === 'text' ? checkRuleText(text, settings, npcTypes) : null),
-    [view, text, settings, npcTypes],
+    () => (view === 'text' ? checkRuleText(text, settings, npcTypes, effects) : null),
+    [view, text, settings, npcTypes, effects],
   );
   const current: RuleAST | null = view === 'blocks' ? ast : (textCheck?.rule?.ast ?? null);
   const diagnostics: Diagnostic[] = useMemo(() => {
     if (view === 'text') return textCheck?.diagnostics ?? [];
-    return validationDiagnostics(ast, BLOCK_LINES, validateRule(ast, settings, npcTypes));
-  }, [view, textCheck, ast, settings, npcTypes]);
+    return validationDiagnostics(ast, BLOCK_LINES, validateRule(ast, settings, npcTypes, effects));
+  }, [view, textCheck, ast, settings, npcTypes, effects]);
   const valid = current !== null && diagnostics.length === 0;
 
   const message = (d: Diagnostic) => {
@@ -119,11 +131,11 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
   const definition = (): RuleDefinition | null => {
     if (!current || !valid) return null;
     const own = initial && !initial.id.startsWith('start.');
-    return {
-      id: own ? initial.id : newRuleId(),
-      author: own ? initial.author : author,
-      ast: current,
-    };
+    return withBundleFromWorkshop(
+      { id: own ? initial.id : newRuleId(), author: own ? initial.author : author, ast: current },
+      effects,
+      npcTypes,
+    );
   };
 
   // ---------- palette actions ----------
@@ -136,11 +148,20 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
           return { ...a, trigger: defaultTrigger(item.kind) };
         case 'condition':
           return { ...a, conditions: [...a.conditions, defaultCondition(item.kind, a.trigger)] };
+        case 'call':
         case 'effect': {
           const target = zone === 'else' ? 'elseEffects' : 'effects';
           if (a[target].length >= MAX_EFFECTS) return a;
           if (target === 'elseEffects' && a.conditions.length === 0) return a;
-          return { ...a, [target]: [...a[target], defaultEffect(item.kind, a.trigger)] };
+          const def = effects.find((e) => e.name === item.kind);
+          const next =
+            item.type === 'call'
+              ? def
+                ? ruleCallFor(def, a.trigger)
+                : null
+              : defaultEffect(item.kind, a.trigger);
+          if (!next) return a;
+          return { ...a, [target]: [...a[target], next] };
         }
         case 'meta':
           return item.kind === 'duration'
@@ -153,7 +174,7 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
   const accepts = (zone: Zone, item: PaletteItem): boolean =>
     (zone === 'when' && item.type === 'trigger') ||
     (zone === 'and' && item.type === 'condition') ||
-    ((zone === 'then' || zone === 'else') && item.type === 'effect') ||
+    ((zone === 'then' || zone === 'else') && (item.type === 'effect' || item.type === 'call')) ||
     (zone === 'meta' && item.type === 'meta');
 
   const dropProps = (zone: Zone) => ({
@@ -186,7 +207,7 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
         e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(item));
         e.dataTransfer.effectAllowed = 'copy';
       }}
-      onClick={() => add(item, item.type === 'effect' ? 'then' : undefined)}
+      onClick={() => add(item, item.type === 'effect' || item.type === 'call' ? 'then' : undefined)}
       title={t('editor.paletteHint')}
     >
       {label}
@@ -264,8 +285,19 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
             {chip({ type: 'meta', kind: 'duration' }, t('editor.duration'), 'meta')}
             {chip({ type: 'meta', kind: 'limit' }, t('editor.limit'), 'meta')}
           </div>
-          <button type="button" className="btn btn-soft btn-small palette-workshop" disabled>
-            {t('editor.workshopSoon')}
+          <h3 className="pal-own">{t('editor.zone.own')}</h3>
+          <div className="palette-group">
+            {effects.length === 0 && <p className="hint">{t('editor.noOwnEffects')}</p>}
+            {effects.map((e) =>
+              chip({ type: 'call', kind: e.name }, `${e.symbol} ${e.name}`, 'own'),
+            )}
+          </div>
+          <button
+            type="button"
+            className="btn btn-soft btn-small palette-workshop"
+            onClick={() => setWorkshopOpen(true)}
+          >
+            {t('editor.openWorkshop')}
           </button>
         </aside>
 
@@ -332,6 +364,7 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
                     effect={e}
                     trigger={ast.trigger}
                     npcTypes={npcTypes}
+                    effects={effects}
                     onOpenText={toText}
                     onChange={(next) =>
                       setAst((a) => ({
@@ -369,6 +402,7 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
                         effect={e}
                         trigger={ast.trigger}
                         npcTypes={npcTypes}
+                        effects={effects}
                         onOpenText={toText}
                         onChange={(next) =>
                           setAst((a) => ({
@@ -577,6 +611,7 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
           </div>
         </aside>
       </div>
+      {workshopOpen && <EffectWorkshop onClose={() => setWorkshopOpen(false)} />}
     </div>
   );
 }

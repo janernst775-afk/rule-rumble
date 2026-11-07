@@ -6,6 +6,7 @@ import { allRules, exportJson, useLibrary } from '../../store/libraryStore';
 import { MuteButton } from '../components/AudioControls';
 import { RuleList } from '../components/RuleList';
 import { RuleEditor } from '../editor/RuleEditor';
+import { EffectWorkshop } from '../workshop/EffectWorkshop';
 import { useProfile } from '../../store/profileStore';
 import { ruleDescription } from '../ruleText';
 
@@ -20,6 +21,7 @@ export function LibraryScreen() {
   const [importText, setImportText] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ initial: RuleDefinition | null } | null>(null);
+  const [workshop, setWorkshop] = useState(false);
   const save = useLibrary((s) => s.save);
   const author = useProfile((s) => s.name);
 
@@ -84,6 +86,9 @@ export function LibraryScreen() {
               onClick={() => setEditing({ initial: null })}
             >
               {t('editor.newRuleButton')}
+            </button>
+            <button type="button" className="btn btn-small" onClick={() => setWorkshop(true)}>
+              {t('workshop.title')}
             </button>
             {selected && (
               <button
@@ -157,6 +162,7 @@ export function LibraryScreen() {
           </button>
         </aside>
       </div>
+      {workshop && <EffectWorkshop onClose={() => setWorkshop(false)} />}
       {editing && (
         <RuleEditor
           initial={editing.initial}

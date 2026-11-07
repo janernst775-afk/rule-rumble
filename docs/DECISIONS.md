@@ -85,3 +85,14 @@ Abweichungen von der Spec und technische Entscheidungen, neueste unten.
 - **Sprache der Regel-Texte** ist eine Profil-Einstellung (Einstellungen → „Sprache der Regel-Texte“).
 - **Bearbeiten von Startregeln** erzeugt eine Kopie mit neuer ID und dem eigenen Namen als Autor; eigene Regeln werden überschrieben.
 
+## 2026-11-07 – Umsetzung v0.5
+
+- **Implizite Werte in Effekten:** Im Effekt-Körper ist nur `feld` (Ort des auslösenden Ereignisses) implizit verfügbar; Figuren und alles Weitere kommen über Parameter. So bleiben Effekte unabhängig vom Auslöser der aufrufenden Regel.
+- **Effekte werden über ihren Namen aufgerufen** (eindeutig, ohne Groß-/Kleinschreibung, nur Buchstaben/Ziffern/_). In der Regel-Sprache: `DANN Erdbeben(1)`. Selbstaufrufe sind erlaubt und durch die Aufruftiefe begrenzt.
+- **Bundle:** Eine Regel trägt die von ihr genutzten eigenen Effekte und NPC-Typen mit (`RuleDefinition.bundle`); beim Einfügen ins Spiel werden sie in `GameState.effects`/`npcTypes` übernommen und gegen die Einstellungen geprüft. Damit sind Spiele und exportierte Regeln in sich vollständig.
+- **Interpreter:** Regel-Auswertung und Effekt-Körper laufen im selben Interpreter (`lang/interpreter.ts`) mit einem Budget pro Regel-Auslösung: 10 000 Schritte, Aufruftiefe 5, Listen ≤ 200, Wiederhole ≤ 10 (feste Schutzwerte in `EFFECT_LIMITS`). Abbruch erzeugt `effectAborted` und eine Verlaufsmeldung; bis dahin ausgeführte Grundaktionen bleiben bestehen.
+- **Ursachen-Verfolgung** (Kettentiefe, Testlauf) nutzt den vorhandenen `cause`-Stapel des Event-Bus; Aktionen in Effekten zählen zur aufrufenden Regel.
+- **NPC-Werte:** SPEC 5.9 (Leben 1–3, Bewegung 0–3) gilt statt der abweichenden Angabe in SPEC 5.2; die Grenzen stehen in `NPC_LIMITS`.
+- **Speicherort:** Eigene Effekte und NPC-Typen liegen in `localStorage` (`rr.workshop`); die Werkstatt ist über Bibliothek und Regel-Editor erreichbar. Eingebaute NPC-Typen sind sichtbar, aber nicht änderbar.
+- **Bausteine der Werkstatt:** Ausdrücke werden über Auswahllisten verschachtelt (Abfrage → Argumente). Für eine Textform von Effekt-Körpern gibt es noch keine Syntax; sie kommt mit dem Profi-Modus (v0.6).
+- **Kompakte Auswahllisten** nutzen `field-sizing: content` (Chromium); andere Browser zeigen breitere Listen, funktional gleich.

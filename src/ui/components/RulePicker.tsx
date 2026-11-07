@@ -7,6 +7,8 @@ import { validateRule } from '../../lang/validator';
 import { allRules, useLibrary } from '../../store/libraryStore';
 import { ruleDescription } from '../ruleText';
 import { Dialog } from './Dialog';
+import { withBundle } from '../../engine/rules';
+import { allNpcTypes, useWorkshop, withBundleFromWorkshop } from '../../store/workshopStore';
 import { RuleList } from './RuleList';
 
 interface Props {
@@ -23,6 +25,8 @@ interface Props {
 export function RulePicker({ game, onCancel, onConfirm, onEdit, preselectId }: Props) {
   const { t } = useTranslation();
   const own = useLibrary((s) => s.rules);
+  const ownEffects = useWorkshop((s) => s.effects);
+  const ownNpcs = useWorkshop((s) => s.npcTypes);
   const [selected, setSelected] = useState<RuleDefinition | null>(
     () => allRules(own).find((r) => r.id === preselectId) ?? null,
   );
@@ -31,7 +35,10 @@ export function RulePicker({ game, onCancel, onConfirm, onEdit, preselectId }: P
   const inGame = new Set(game.rules.map((r) => r.def.id));
   const disabledReason = (def: RuleDefinition): string | null => {
     if (inGame.has(def.id)) return 'rules.alreadyActive';
-    const errors = validateRule(def.ast, game.settings, game.npcTypes);
+    // The rule's own effects and NPC types travel with it (from its bundle or the workshop).
+    const withOwn = withBundleFromWorkshop(def, ownEffects, allNpcTypes(ownNpcs));
+    const { effects, npcTypes } = withBundle(game, withOwn);
+    const errors = validateRule(def.ast, game.settings, npcTypes, effects);
     if (errors.length === 0) return null;
     return `validation.${errors[0]?.code ?? 'invalid'}`;
   };
@@ -105,7 +112,13 @@ export function RulePicker({ game, onCancel, onConfirm, onEdit, preselectId }: P
               type="button"
               className="btn btn-primary"
               disabled={!canConfirm}
-              onClick={() => selected && onConfirm(selected, replaceId ?? undefined)}
+              onClick={() =>
+                selected &&
+                onConfirm(
+                  withBundleFromWorkshop(selected, ownEffects, allNpcTypes(ownNpcs)),
+                  replaceId ?? undefined,
+                )
+              }
             >
               {t('rules.confirm')}
             </button>

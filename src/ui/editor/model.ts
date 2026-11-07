@@ -2,6 +2,7 @@
 // current trigger (only context values the trigger offers, SPEC 5.2).
 import type { TileType } from '../../engine/types';
 import type {
+  EffectDef,
   Effect,
   EffectKind,
   Expr,
@@ -260,9 +261,46 @@ export function defaultEffect(kind: EffectKind, trigger: Trigger): Effect {
       };
     case 'message':
       return { kind, text: 'Achtung!' };
+    case 'call':
+      return { kind, effect: '', args: [] };
   }
 }
 
 export function newRuleId(): string {
   return `own.${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+}
+
+/** Default call of an own effect in a rule: arguments taken from the event where possible. */
+export function ruleCallFor(def: EffectDef, trigger: Trigger): Effect {
+  const ctx = TRIGGER_CONTEXT[trigger.kind];
+  const ref = ctx.figures[0];
+  const args: Expr[] = def.params.map((p) => {
+    switch (p.type) {
+      case 'number':
+        return { kind: 'num', value: 1 };
+      case 'figure':
+        return ref ? { kind: 'figureRef', ref } : { kind: 'none' };
+      case 'figureSet':
+        return { kind: 'targets', target: { kind: 'all' } };
+      case 'tile':
+        return ctx.eventTile
+          ? { kind: 'tileRef', tile: { kind: 'eventTile' } }
+          : ref
+            ? { kind: 'tileRef', tile: { kind: 'figureTile', ref } }
+            : { kind: 'none' };
+      case 'tileSet':
+        return { kind: 'tiles', target: tileOptions(trigger)[0] ?? { kind: 'randomTile' } };
+      default:
+        return { kind: 'str', value: '' };
+    }
+  });
+  return { kind: 'call', effect: def.name, args };
+}
+
+export function mergeById<T extends { id: string }>(a: readonly T[], b: readonly T[]): T[] {
+  return [...a, ...b.filter((x) => !a.some((y) => y.id === x.id))];
+}
+
+export function mergeByName<T extends { name: string }>(a: readonly T[], b: readonly T[]): T[] {
+  return [...a.filter((x) => !b.some((y) => y.name.toLowerCase() === x.name.toLowerCase())), ...b];
 }

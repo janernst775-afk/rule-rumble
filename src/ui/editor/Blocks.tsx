@@ -1,8 +1,20 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { NpcType, TileType } from '../../engine/types';
-import type { CmpOp, Effect, Expr, Target, TileTarget, Trigger, TriggerKind } from '../../lang/ast';
-import { printCondition } from '../../lang/printer';
+import type {
+  CmpOp,
+  Effect,
+  EffectDef,
+  EffectParam,
+  Expr,
+  FigureRef,
+  Target,
+  TileTarget,
+  Trigger,
+  TriggerKind,
+} from '../../lang/ast';
+import { TRIGGER_CONTEXT } from '../../lang/context';
+import { printCondition, printExprText } from '../../lang/printer';
 import { CloseIcon, ChevronIcon } from '../components/Icons';
 import { TRIGGER_KINDS } from '../ruleText';
 import { targetLabel, tileLabel, valueLabel } from './labels';
@@ -349,12 +361,14 @@ function EffectInputs({
   effect,
   trigger,
   npcTypes,
+  effects = [],
   onChange,
   onOpenText,
 }: {
   effect: Effect;
   trigger: Trigger;
   npcTypes: readonly NpcType[];
+  effects?: readonly EffectDef[];
   onChange: (e: Effect) => void;
   onOpenText: () => void;
 }) {
@@ -550,6 +564,140 @@ function EffectInputs({
           value={effect.text}
           maxLength={80}
           onChange={(text) => onChange({ ...effect, text })}
+        />
+      );
+    case 'call': {
+      const def = effects.find((d) => d.name.toLowerCase() === effect.effect.toLowerCase());
+      if (!def) return <span className="block-word">{effect.effect}</span>;
+      return (
+        <>
+          <span className="block-word">
+            {def.symbol} {def.name}
+          </span>
+          {def.params.map((p, i) => (
+            <span key={p.name} className="call-arg">
+              <span className="block-word">{p.name}:</span>
+              <CallArg
+                param={p}
+                arg={effect.args[i]}
+                trigger={trigger}
+                onOpenText={onOpenText}
+                onChange={(a) => {
+                  const args = [...effect.args];
+                  args[i] = a;
+                  onChange({ ...effect, args });
+                }}
+              />
+            </span>
+          ))}
+        </>
+      );
+    }
+  }
+}
+
+/** One argument of an own effect in a rule, by parameter type. */
+function CallArg({
+  param,
+  arg,
+  trigger,
+  onChange,
+  onOpenText,
+}: {
+  param: EffectParam;
+  arg: Expr | undefined;
+  trigger: Trigger;
+  onChange: (e: Expr) => void;
+  onOpenText: () => void;
+}) {
+  const { t } = useTranslation();
+  const ctx = TRIGGER_CONTEXT[trigger.kind];
+  switch (param.type) {
+    case 'number':
+      if (arg && arg.kind !== 'num') {
+        return (
+          <button type="button" className="code-chip" onClick={onOpenText}>
+            {printExprText(arg, 'de')}
+          </button>
+        );
+      }
+      return (
+        <NumberField
+          label={param.name}
+          value={arg?.kind === 'num' ? arg.value : 1}
+          min={-1000}
+          max={1000}
+          onChange={(value) => onChange({ kind: 'num', value })}
+        />
+      );
+    case 'figure': {
+      const refs: FigureRef[] = [...ctx.figures];
+      const value = arg?.kind === 'figureRef' ? arg.ref : (refs[0] ?? 'trigger');
+      return (
+        <Select<FigureRef>
+          label={param.name}
+          value={value}
+          options={refs.length > 0 ? refs : ['trigger']}
+          keyOf={(r) => r}
+          labelOf={(r) => t(`editor.target.${r}`)}
+          onChange={(ref) => onChange({ kind: 'figureRef', ref })}
+        />
+      );
+    }
+    case 'figureSet':
+      return (
+        <Select<Target>
+          label={param.name}
+          value={arg?.kind === 'targets' ? arg.target : ({ kind: 'all' } as Target)}
+          options={targetOptions(trigger)}
+          keyOf={targetKey}
+          labelOf={(x) => targetLabel(t, x)}
+          onChange={(target) => onChange({ kind: 'targets', target })}
+        />
+      );
+    case 'tile': {
+      const options: TileTarget[] = tileOptions(trigger).filter(
+        (x) => x.kind === 'eventTile' || x.kind === 'fromTile' || x.kind === 'figureTile',
+      );
+      const current: TileTarget =
+        arg?.kind === 'tileRef' ? arg.tile : (options[0] ?? { kind: 'eventTile' });
+      return (
+        <Select<TileTarget>
+          label={param.name}
+          value={current}
+          options={options}
+          keyOf={tileKeyOf}
+          labelOf={(x) => tileLabel(t, x)}
+          onChange={(tile) => {
+            if (
+              tile.kind === 'eventTile' ||
+              tile.kind === 'fromTile' ||
+              tile.kind === 'figureTile'
+            ) {
+              onChange({ kind: 'tileRef', tile });
+            }
+          }}
+        />
+      );
+    }
+    case 'tileSet':
+      return (
+        <Select<TileTarget>
+          label={param.name}
+          value={arg?.kind === 'tiles' ? arg.target : ({ kind: 'randomTile' } as TileTarget)}
+          options={tileOptions(trigger)}
+          keyOf={tileKeyOf}
+          labelOf={(x) => tileLabel(t, x)}
+          onChange={(target) => onChange({ kind: 'tiles', target })}
+        />
+      );
+    default:
+      return (
+        <TextField
+          label={param.name}
+          value={arg?.kind === 'str' ? arg.value : ''}
+          maxLength={30}
+          onChange={(value) => onChange({ kind: 'str', value })}
         />
       );
   }

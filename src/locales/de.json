@@ -316,7 +316,12 @@
     "healed": "{{figure}} wird geheilt.",
     "spawned": "{{figure}} erscheint.",
     "turnSkipped": "{{figure}} setzt aus.",
-    "voteStarted": "{{figure}} will „{{rule}}“ – Abstimmung, welche Regel gehen muss."
+    "voteStarted": "{{figure}} will „{{rule}}“ – Abstimmung, welche Regel gehen muss.",
+    "effectAborted": {
+      "steps": "„{{rule}}“ abgebrochen: Rechenbudget erschöpft.",
+      "depth": "„{{rule}}“ abgebrochen: zu tiefe Effekt-Aufrufe.",
+      "list": "„{{rule}}“ abgebrochen: Liste zu lang."
+    }
   },
   "toast": {
     "hit": "{{attacker}} trifft {{target}}!",
@@ -411,7 +416,7 @@
     "remove": "Entfernen",
     "alreadyActive": "Schon im Spiel",
     "pickTitle": "Neue Regel",
-    "pickHint": "Wähle links eine Regel aus der Bibliothek. Eigene Regeln baust du ab v0.4 im Regel-Editor.",
+    "pickHint": "Wähle links eine Regel aus der Bibliothek. Oder bau mit „Neue Regel bauen“ eine eigene – auch mit Effekten aus der Effekt-Werkstatt.",
     "fairNow": "Gilt für alle Figuren gleich – auch für den Boss. Aktiv ab sofort.",
     "fairNext": "Gilt für alle Figuren gleich – auch für den Boss. Aktiv ab Runde {{round}}.",
     "overflowDrop": "Das Maximum ist erreicht: Die älteste Regel fällt weg.",
@@ -460,7 +465,8 @@
       "addTileNear": "Feld anlegen",
       "wheelMod": "Rad-Chance ändern",
       "setVar": "Variable setzen",
-      "message": "Nachricht"
+      "message": "Nachricht",
+      "call": "Eigener Effekt"
     }
   },
   "startRules": {
@@ -532,7 +538,24 @@
     "elseWithoutCondition": "SONST braucht eine Bedingung.",
     "durationRange": "Dauer von {{min}} bis {{max}} Runden.",
     "limitRange": "Limit von {{min}} bis {{max}}.",
-    "contextMissingAt": "„{{value}}“ gibt es bei {{event}} nicht."
+    "contextMissingAt": "„{{value}}“ gibt es bei {{event}} nicht.",
+    "unknownVariable": "Unbekannte Variable „{{value}}“.",
+    "unknownProperty": "Unbekannte Eigenschaft „{{value}}“.",
+    "unknownQuery": "Unbekannte Abfrage „{{value}}“.",
+    "argCount": "Hier werden {{expected}} Werte erwartet.",
+    "argType": "Falscher Typ für „{{param}}“.",
+    "unknownEffect": "Den Effekt „{{value}}“ gibt es nicht.",
+    "notASet": "Hier wird eine Menge gebraucht.",
+    "repeatRange": "Wiederhole geht von {{min}} bis {{max}} Mal.",
+    "waitRange": "Warte höchstens {{max}} Sekunden.",
+    "effectName": "Der Name braucht Buchstaben, Ziffern oder _ (ohne Leerzeichen).",
+    "symbolTooLong": "Das Symbol hat höchstens 2 Zeichen.",
+    "tooManyParams": "Höchstens {{max}} Parameter.",
+    "duplicateParam": "Den Parameter „{{value}}“ gibt es doppelt.",
+    "paramType": "Unbekannter Parametertyp.",
+    "emptyBody": "Der Effekt braucht mindestens einen Schritt.",
+    "tooManySteps": "Höchstens {{max}} Schritte.",
+    "tooDeep": "Höchstens {{max}} Ebenen tief."
   },
   "editor": {
     "up": "Nach oben",
@@ -552,7 +575,8 @@
       "and": "UND",
       "then": "DANN",
       "else": "SONST",
-      "meta": "EXTRA"
+      "meta": "EXTRA",
+      "own": "MEINE EFFEKTE"
     },
     "trigger": {
       "roundStart": "Runde beginnt",
@@ -597,11 +621,11 @@
       "addTileNear": "Lege Feld an",
       "wheelMod": "Rad-Chance",
       "setVar": "Setze Variable",
-      "message": "Zeige Nachricht"
+      "message": "Zeige Nachricht",
+      "call": "Eigener Effekt"
     },
     "duration": "Dauer",
     "limit": "Limit",
-    "workshopSoon": "+ Effekt-Werkstatt (ab v0.5)",
     "paletteHint": "Klicken oder auf die Regel ziehen",
     "dropCondition": "+ Bedingung hier ablegen",
     "dropEffect": "+ Effekt hier ablegen · noch {{count}} frei",
@@ -706,7 +730,9 @@
       "round": "Runde",
       "tileCount": "Anzahl Felder",
       "npcCount": "Anzahl NPCs"
-    }
+    },
+    "noOwnEffects": "Noch keine – baue welche in der Effekt-Werkstatt.",
+    "openWorkshop": "+ Effekt-Werkstatt"
   },
   "explain": {
     "figure": {
@@ -803,7 +829,8 @@
       "setVarSet": "„{{name}}“ von {{owner}} wird {{value}}",
       "setVarAdd": "„{{name}}“ von {{owner}} steigt um {{value}}",
       "setVarSub": "„{{name}}“ von {{owner}} sinkt um {{value}}",
-      "message": "Nachricht „{{text}}“"
+      "message": "Nachricht „{{text}}“",
+      "call": "Effekt „{{name}}“ ({{args}})"
     },
     "world": "der Welt",
     "otherwise": "Sonst: {{effects}}.",
@@ -840,5 +867,137 @@
     "misplacedCondition": "UND-Zeilen stehen zwischen WENN und DANN.",
     "thenAfterElse": "DANN-Zeilen stehen vor SONST.",
     "oneRuleOnly": "Hier bitte genau eine Regel."
+  },
+  "workshop": {
+    "title": "Effekt-Werkstatt",
+    "blocksOnly": "Bausteine · Profi-Code ab v0.6",
+    "mine": "Meine Sachen",
+    "effects": "Effekte",
+    "npcTypes": "NPC-Typen",
+    "builtIn": "Eingebaut – nicht änderbar",
+    "newEffect": "+ Neuer Effekt",
+    "newNpc": "+ NPC-Typ",
+    "body": "Effekt",
+    "effectWord": "EFFEKT",
+    "symbol": "Symbol",
+    "name": "Name",
+    "note": "Effekte verändern die Welt nur über die Grundaktionen – alle Grenzen gelten auch hier. Höchstens 10 000 Schritte pro Auslösung.",
+    "params": "Parameter",
+    "paramName": "Parametername",
+    "paramType": "Typ",
+    "addParam": "+ Parameter",
+    "check": "Prüfung",
+    "errorsInSteps": "{{count}} Fehler in den Schritten (rot markiert)",
+    "callAs": "In einer Regel: DANN {{call}}",
+    "delete": "Löschen",
+    "save": "Effekt speichern",
+    "saved": "Gespeichert ✓",
+    "nameTaken": "Diesen Namen gibt es schon.",
+    "newEffectName": "Mein_Effekt",
+    "testRuleName": "Testlauf",
+    "types": {
+      "number": "Zahl",
+      "figure": "Figur",
+      "tile": "Feld",
+      "figureSet": "Menge (Figuren)",
+      "tileSet": "Menge (Felder)",
+      "text": "Text",
+      "npcType": "NPC-Typ",
+      "texture": "Textur",
+      "sound": "Sound"
+    },
+    "expr": {
+      "number": "Zahl",
+      "text": "Text",
+      "feld": "feld (Ort des Ereignisses)",
+      "var": "{{name}}",
+      "prop": "{{name}}: {{prop}}",
+      "figureTile": "{{name}}: Feld",
+      "none": "KEINE",
+      "choose": "– wählen –"
+    },
+    "query": {
+      "figuresOn": "Figuren auf …",
+      "neighborTiles": "Nachbarfelder von … (Radius)",
+      "tilesOfType": "Felder mit Typ …",
+      "tilesWithTexture": "Felder mit Textur …",
+      "emptyTiles": "leere Felder",
+      "allFigures": "alle Figuren",
+      "allNpcs": "alle NPCs",
+      "nearestFigure": "nächste Figur zu …",
+      "distance": "Entfernung zwischen …",
+      "randomNumber": "Zufallszahl von … bis …",
+      "count": "Anzahl von …"
+    },
+    "cond": {
+      "kind": "Art der Bedingung",
+      "chance": "Zufall",
+      "cmp": "Vergleich",
+      "and": "alle müssen stimmen (UND)",
+      "or": "eine muss stimmen (ODER)",
+      "not": "NICHT",
+      "left": "linker Wert",
+      "right": "rechter Wert",
+      "andWord": "UND",
+      "orWord": "ODER",
+      "addPart": "+ Teil"
+    },
+    "target": {
+      "value": "Figur(en) aus …",
+      "tileValue": "Feld(er) aus …"
+    },
+    "figuresVar": "Figuren",
+    "callEffect": "Effekt",
+    "addStep": "+ Schritt hinzufügen",
+    "groups": {
+      "control": "Steuerung",
+      "actions": "Aktionen",
+      "effects": "Meine Effekte"
+    },
+    "stmt": {
+      "if": "WENN",
+      "repeat": "WIEDERHOLE",
+      "forEach": "FÜR JEDE",
+      "pick": "WÄHLE ZUFÄLLIG",
+      "let": "MERKE",
+      "play": "SPIELE",
+      "texture": "TEXTUR",
+      "wait": "WARTE",
+      "call": "EFFEKT"
+    },
+    "times": "Wie oft",
+    "timesWord": "MAL",
+    "varName": "Variablenname",
+    "in": "IN",
+    "from": "AUS",
+    "set": "Menge",
+    "value": "Wert",
+    "sound": "Sound",
+    "seconds": "Sekunden",
+    "else": "SONST",
+    "npc": {
+      "defaultName": "Geist",
+      "name": "Name",
+      "idTaken": "„{{id}}“ gibt es schon.",
+      "life": "Leben",
+      "move": "Bewegung",
+      "behavior": "Verhalten",
+      "behaviors": {
+        "chase": "verfolgt",
+        "wander": "wandert",
+        "stand": "steht",
+        "flee": "flieht"
+      },
+      "codeSoon": "Eigenes Verhalten per Code ab v0.6.",
+      "look": "Aussehen",
+      "looks": {
+        "symbol": "Symbol & Farbe",
+        "draw": "Zeichnen",
+        "upload": "Bild hochladen"
+      },
+      "symbol": "Symbol",
+      "usePicture": "Bild übernehmen",
+      "save": "NPC-Typ speichern"
+    }
   }
 }
