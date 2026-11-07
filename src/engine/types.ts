@@ -1,4 +1,4 @@
-import type { RuleDefinition } from '../lang/ast';
+import type { EffectDef, RuleDefinition } from '../lang/ast';
 
 // Core engine types. Everything here is plain JSON: no classes, Maps or functions.
 
@@ -128,6 +128,8 @@ export interface NpcType {
   /** Short symbol shown on the token, e.g. "Z". */
   symbol: string;
   color: string;
+  /** Own NPC types: 128×128 picture as data URL (drawn or uploaded). */
+  image?: string | null;
   hp: number;
   move: number;
   behavior: NpcBehavior;
@@ -212,6 +214,8 @@ export interface GameState {
   seatOrder: FigureId[];
   participants: Record<FigureId, Participant>;
   npcTypes: NpcType[];
+  /** Own effects from the effect workshop, brought in by rules (SPEC 5.7). */
+  effects: EffectDef[];
   rules: ActiveRule[];
   pendingVote: PendingVote | null;
   /** Rule damage taken per figure this round (attacks do not count). */
@@ -323,6 +327,10 @@ export type GameEvent =
   | { type: 'tileTypeChanged'; pos: Pos; tileType: TileType }
   | { type: 'voteStarted'; voters: FigureId[] }
   | { type: 'voteCast'; figure: FigureId; rule: string }
+  | { type: 'soundPlayed'; rule: string; sound: string }
+  | { type: 'waited'; rule: string; seconds: number }
+  | { type: 'textureChanged'; pos: Pos; textureId: string | null }
+  | { type: 'effectAborted'; rule: string; name: string; reason: 'steps' | 'depth' | 'list' }
   | { type: 'passed'; figure: FigureId }
   | { type: 'turnEnded'; figure: FigureId }
   | { type: 'roundEnded'; round: number }

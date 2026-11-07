@@ -317,7 +317,67 @@ function roundsWord(line: Line): void {
 
 // ---------- actions ----------
 
+/** Argument of an effect call in a rule: values, figures, tiles or sets (SPEC 5.7). */
+function callArg(line: Line): Expr {
+  const t = line.peek();
+  if (t?.kind === 'word') {
+    const followedByDot = line.isSymbol('.', 1);
+    const target = lookup(TARGET_W, t.text);
+    if (target) {
+      const ref = FIGURE_REFS[target];
+      if (ref && !followedByDot) {
+        line.next();
+        return { kind: 'figureRef', ref: ref as FigureRef };
+      }
+      // ziel.feld (the tile of a figure) unless a tile property follows (ziel.feld.typ)
+      const third = line.peek(2);
+      if (
+        ref &&
+        third?.kind === 'word' &&
+        lookup(FIGURE_PROP_W, third.text) === 'tile' &&
+        !line.isSymbol('.', 3)
+      ) {
+        line.next();
+        line.next();
+        line.next();
+        return { kind: 'tileRef', tile: { kind: 'figureTile', ref: ref as FigureRef } };
+      }
+      if (!ref) {
+        line.next();
+        return { kind: 'targets', target: { kind: target } as Target };
+      }
+    }
+    const tile = lookup(TILE_W, t.text);
+    if ((tile === 'eventTile' || tile === 'fromTile') && !followedByDot) {
+      line.next();
+      return { kind: 'tileRef', tile: { kind: tile } };
+    }
+    if (tile && tile !== 'eventTile' && tile !== 'fromTile' && tile !== 'newTile') {
+      return { kind: 'tiles', target: tileTarget(line) };
+    }
+  }
+  return value(line);
+}
+
+const EFFECT_NAME = /^[A-Za-zÄÖÜäöüß_][A-Za-zÄÖÜäöüß_0-9]*$/;
+
 function action(line: Line): Effect {
+  // Own effect: Name(arg, …)
+  const first = line.peek();
+  if (first?.kind === 'word' && line.isSymbol('(', 1) && EFFECT_NAME.test(first.text)) {
+    line.next();
+    line.next();
+    const args: Expr[] = [];
+    if (!line.isSymbol(')')) {
+      args.push(callArg(line));
+      while (line.isSymbol(',')) {
+        line.next();
+        args.push(callArg(line));
+      }
+    }
+    line.expectSymbol(')');
+    return { kind: 'call', effect: first.text, args };
+  }
   const kind = line.expectWord(ACTION_KW, 'unknownAction');
   switch (kind) {
     case 'spawn': {

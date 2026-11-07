@@ -190,7 +190,7 @@ export function spawnNpc(bus: Bus, npcType: NpcType, pos: Pos, ruleId: string): 
   state.participants[id] = {
     figureId: id,
     name: npcType.name,
-    avatar: { image: null, color: npcType.color },
+    avatar: { image: npcType.image ?? null, color: npcType.color },
     controller: 'npc',
     difficulty: null,
   };
@@ -216,6 +216,27 @@ export function setVariable(
   const current = store[key] ?? 0;
   const next = op === '=' ? value : op === '+' ? current + value : current - value;
   store[key] = clampInt(next, L.min, L.max);
+}
+
+/**
+ * TEXTUR feld "Name": shows a known texture of that name on the tile (case-insensitive).
+ * Unknown names only register the name, so rules can still ask for feld.textur.
+ */
+export function setTextureByName(bus: Bus, pos: Pos, name: string): void {
+  const state = bus.state;
+  const tile = state.tiles[tileKey(pos)];
+  const wanted = name.trim().slice(0, 30);
+  if (!tile || !wanted) return;
+  let id = Object.keys(state.textureNames).find(
+    (k) => (state.textureNames[k] ?? '').toLowerCase() === wanted.toLowerCase(),
+  );
+  if (!id) {
+    id = `name:${wanted.toLowerCase()}`;
+    state.textureNames[id] = wanted;
+  }
+  if (tile.textureId === id) return;
+  tile.textureId = id;
+  emit(bus, { type: 'textureChanged', pos: { ...pos }, textureId: id });
 }
 
 /** ZEIGE "…" – at most 80 characters. */

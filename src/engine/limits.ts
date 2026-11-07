@@ -39,5 +39,24 @@ export const CHAIN_LIMITS = {
   maxEffectsPerTurn: 50,
 } as const;
 
+/** Own effects (SPEC 5.7 / 5.8): computing budget per rule firing and structural limits. */
+export const EFFECT_LIMITS = {
+  maxSteps: 10_000,
+  maxCallDepth: 5,
+  maxRepeat: 10,
+  maxListLength: 200,
+  maxRadius: 5,
+  maxWait: 3,
+  maxParams: 4,
+  maxStmts: 40,
+  maxNesting: 6,
+} as const;
+
+/** Own NPC types (SPEC 5.9). */
+export const NPC_LIMITS = {
+  hp: { min: 1, max: 3 },
+  move: { min: 0, max: 3 },
+} as const;
+
 /** Comeback: dodge chance against rule damage at 1 life (SPEC 6.3). */
 export const COMEBACK_DODGE_PERCENT = 50;

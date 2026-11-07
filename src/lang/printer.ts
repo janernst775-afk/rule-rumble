@@ -11,6 +11,8 @@ import {
   TILE_TYPE_W,
   TILE_W,
   VALUE_W,
+  NONE_W,
+  QUERY_W,
   type CodeLang,
 } from './keywords';
 
@@ -79,6 +81,27 @@ function printValue(e: Expr, lang: CodeLang, bareTileType: boolean): string {
       return `${VALUE_W.world[lang]}.${e.name}`;
     case 'amount':
       return VALUE_W.amount[lang];
+    case 'none':
+      return NONE_W[lang];
+    case 'var':
+      return e.name;
+    case 'varProp': {
+      const fp = (FIGURE_PROP_W as Record<string, { de: string; en: string }>)[e.prop];
+      const tp = (TILE_PROP_W as Record<string, { de: string; en: string }>)[e.prop];
+      return `${e.name}.${(fp ?? tp)?.[lang] ?? e.prop}`;
+    }
+    case 'query':
+      return `${QUERY_W[e.name][lang]}(${e.args.map((a) => printValue(a, lang, false)).join(', ')})`;
+    case 'figureRef':
+      return refWord(e.ref, lang);
+    case 'tileRef':
+      return e.tile.kind === 'figureTile'
+        ? `${refWord(e.tile.ref, lang)}.${FIGURE_PROP_W.tile[lang]}`
+        : TILE_W[e.tile.kind][lang];
+    case 'targets':
+      return printTarget(e.target, lang);
+    case 'tiles':
+      return printTile(e.target, lang);
     default:
       return printExpr(e, lang, 0);
   }
@@ -109,10 +132,12 @@ function printExpr(e: Expr, lang: CodeLang, parent: number): string {
 }
 
 function printTarget(t: Target, lang: CodeLang): string {
+  if (t.kind === 'value') return printValue(t.expr, lang, false);
   return t.kind === 'ref' ? refWord(t.ref, lang) : TARGET_W[t.kind][lang];
 }
 
 function printTile(t: TileTarget, lang: CodeLang): string {
+  if (t.kind === 'value') return printValue(t.expr, lang, false);
   if (t.kind === 'figureTile') return `${refWord(t.ref, lang)}.${FIGURE_PROP_W.tile[lang]}`;
   if (t.kind === 'tilesOfType')
     return `${TILE_W.tilesOfType[lang]} ${TILE_TYPE_W[t.tileType][lang]}`;
@@ -120,6 +145,9 @@ function printTile(t: TileTarget, lang: CodeLang): string {
 }
 
 export function printEffect(e: Effect, lang: CodeLang): string {
+  if (e.kind === 'call') {
+    return `${e.effect}(${e.args.map((a) => printValue(a, lang, false)).join(', ')})`;
+  }
   const kw = ACTION_KW[e.kind][lang];
   switch (e.kind) {
     case 'spawn':
@@ -152,6 +180,11 @@ export function printEffect(e: Effect, lang: CodeLang): string {
     case 'message':
       return `${kw} ${quote(e.text)}`;
   }
+}
+
+/** Any expression as rule text (also variables, queries and effect arguments). */
+export function printExprText(e: Expr, lang: CodeLang): string {
+  return printValue(e, lang, false);
 }
 
 export function printCondition(e: Expr, lang: CodeLang): string {

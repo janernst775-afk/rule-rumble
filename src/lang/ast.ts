@@ -53,7 +53,37 @@ export type Expr =
   | { kind: 'and'; items: Expr[] }
   | { kind: 'or'; items: Expr[] }
   | { kind: 'not'; item: Expr }
-  | { kind: 'chance'; percent: number };
+  | { kind: 'chance'; percent: number }
+  // ---- effect workshop (SPEC 5.7) ----
+  /** Parameter or local variable (MERKE, FÜR JEDE, WÄHLE ZUFÄLLIG). */
+  | { kind: 'var'; name: string }
+  /** Property of a variable: f.leben, f.feld, f.typ, f.anzahl_figuren, f.<eigene Variable> */
+  | { kind: 'varProp'; name: string; prop: string }
+  | { kind: 'query'; name: QueryName; args: Expr[] }
+  /** A figure named by the event (argument of an effect call in a rule). */
+  | { kind: 'figureRef'; ref: FigureRef }
+  /** A tile named by the event; inside effects `feld` is always available. */
+  | { kind: 'tileRef'; tile: TileRef }
+  /** A set of figures as in rule targets (alle, nachbarn …). */
+  | { kind: 'targets'; target: Target }
+  /** A set of tiles as in rule tile targets (nachbarfelder …). */
+  | { kind: 'tiles'; target: TileTarget }
+  /** KEINE (no figure / no tile) */
+  | { kind: 'none' };
+
+/** Queries of the effect workshop (SPEC 5.7 "Abfragen"). */
+export type QueryName =
+  | 'figuresOn'
+  | 'neighborTiles'
+  | 'tilesOfType'
+  | 'tilesWithTexture'
+  | 'emptyTiles'
+  | 'allFigures'
+  | 'allNpcs'
+  | 'nearestFigure'
+  | 'distance'
+  | 'randomNumber'
+  | 'count';
 
 export type CmpOp = '=' | '!=' | '<' | '>' | '<=' | '>=';
 
@@ -67,7 +97,9 @@ export type Target =
   | { kind: 'nearest' }
   | { kind: 'random' }
   | { kind: 'all' }
-  | { kind: 'allNpcs' };
+  | { kind: 'allNpcs' }
+  /** Inside effects: a figure or set of figures from a variable or query. */
+  | { kind: 'value'; expr: Expr };
 
 /** Tile targets (SPEC 5.2 "Feld-Ziele"). */
 export type TileTarget =
@@ -75,7 +107,9 @@ export type TileTarget =
   | { kind: 'neighborTiles' }
   | { kind: 'randomTile' }
   | { kind: 'randomEmptyTile' }
-  | { kind: 'tilesOfType'; tileType: TileType };
+  | { kind: 'tilesOfType'; tileType: TileType }
+  /** Inside effects: a tile or set of tiles from a variable or query. */
+  | { kind: 'value'; expr: Expr };
 
 export type VarScope = { kind: 'figures'; target: Target } | { kind: 'world' };
 
@@ -93,7 +127,9 @@ export type Effect =
   | { kind: 'addTileNear'; at: TileTarget }
   | { kind: 'wheelMod'; target: Target; delta: number; rounds: number }
   | { kind: 'setVar'; scope: VarScope; name: string; op: '=' | '+' | '-'; value: Expr }
-  | { kind: 'message'; text: string };
+  | { kind: 'message'; text: string }
+  /** Calls an own effect from the effect workshop by name: Erdbeben(1) */
+  | { kind: 'call'; effect: string; args: Expr[] };
 
 export type EffectKind = Effect['kind'];
 
@@ -116,6 +152,66 @@ export interface RuleAST {
   limit: RuleLimit | null;
 }
 
+// ---------- effect workshop (SPEC 5.7) ----------
+
+/** Parameter and value types. Sets are typed by their elements. */
+export type ValueType =
+  | 'number'
+  | 'text'
+  | 'bool'
+  | 'figure'
+  | 'tile'
+  | 'figureSet'
+  | 'tileSet'
+  | 'npcType'
+  | 'texture'
+  | 'sound';
+
+export type ParamType = Exclude<ValueType, 'bool'>;
+
+export interface EffectParam {
+  name: string;
+  type: ParamType;
+}
+
+export type Stmt =
+  /** A primitive (all effects from SPEC 5.2) or a call of another own effect. */
+  | { kind: 'do'; effect: Effect }
+  | { kind: 'if'; cond: Expr; then: Stmt[]; else: Stmt[] }
+  /** WIEDERHOLE n MAL (max. 10) */
+  | { kind: 'repeat'; times: Expr; body: Stmt[] }
+  /** FÜR JEDE x IN menge (max. 200 Elemente) */
+  | { kind: 'forEach'; var: string; in: Expr; body: Stmt[] }
+  /** WÄHLE ZUFÄLLIG x AUS menge */
+  | { kind: 'pick'; var: string; from: Expr }
+  /** MERKE x = … (local variable) */
+  | { kind: 'let'; name: string; value: Expr }
+  /** SPIELE "sound" (audible from v0.7) */
+  | { kind: 'play'; sound: Expr }
+  /** TEXTUR feld "Name" */
+  | { kind: 'texture'; tile: Expr; name: Expr }
+  /** WARTE 0.5 (animation only, no game effect) */
+  | { kind: 'wait'; seconds: number };
+
+export type StmtKind = Stmt['kind'];
+
+/** An own effect from the effect workshop. */
+export interface EffectDef {
+  /** Unique (case-insensitive) name; rules call effects by name. */
+  name: string;
+  author: string;
+  /** Short symbol (1–2 characters) shown on blocks. */
+  symbol: string;
+  params: EffectParam[];
+  body: Stmt[];
+}
+
+/** Own effects and NPC types a rule needs, carried along into the game. */
+export interface RuleBundle {
+  effects: EffectDef[];
+  npcTypes: import('../engine/types').NpcType[];
+}
+
 /** A rule as stored in the library and carried by the addRule action. */
 export interface RuleDefinition {
   /** Stable library id, e.g. "start.zombie-land" or a generated id for own rules. */
@@ -123,4 +219,6 @@ export interface RuleDefinition {
   /** Name of the player who wrote it (display only, never readable by rules). */
   author: string;
   ast: RuleAST;
+  /** Own effects and NPC types used by the rule (resolved from the library). */
+  bundle?: RuleBundle;
 }

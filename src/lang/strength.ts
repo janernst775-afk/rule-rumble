@@ -62,6 +62,7 @@ const EFFECT_WEIGHT: Record<Effect['kind'], number> = {
   addTileNear: 0.5,
   setVar: 0.2,
   message: 0,
+  call: 2.5,
 };
 
 function effectWeight(e: Effect): number {

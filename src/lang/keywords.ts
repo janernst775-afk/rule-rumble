@@ -118,6 +118,24 @@ export const TILE_PROP_W = {
   texture: { de: 'textur', en: 'texture' },
 } satisfies Record<string, Word>;
 
+/** Queries of the effect workshop (SPEC 5.7). */
+export const QUERY_W = {
+  figuresOn: { de: 'figuren_auf', en: 'figures_on' },
+  neighborTiles: { de: 'nachbarfelder', en: 'neighbor_tiles' },
+  tilesOfType: { de: 'felder_mit_typ', en: 'tiles_of_type' },
+  tilesWithTexture: { de: 'felder_mit_textur', en: 'tiles_with_texture' },
+  emptyTiles: { de: 'leere_felder', en: 'empty_tiles' },
+  allFigures: { de: 'alle_figuren', en: 'all_figures' },
+  allNpcs: { de: 'alle_npcs', en: 'all_npcs' },
+  nearestFigure: { de: 'nächste_figur', en: 'nearest_figure' },
+  distance: { de: 'entfernung', en: 'distance' },
+  randomNumber: { de: 'zufallszahl', en: 'random_number' },
+  count: { de: 'anzahl', en: 'count' },
+} satisfies Record<string, Word>;
+
+/** KEINE */
+export const NONE_W: Word = { de: 'KEINE', en: 'NONE' };
+
 /** Tile types: the AST stores the German id. */
 export const TILE_TYPE_W: Record<TileType, Word> = {
   normal: { de: 'normal', en: 'normal' },

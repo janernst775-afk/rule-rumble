@@ -1,6 +1,7 @@
 // AST → plain-language sentence (SPEC 5.4 "Klartext-Vorschau"). Pure: the caller passes
 // a translate function (i18next's t in the UI); keys live under explain.* in de.json.
 import type { Effect, Expr, FigureRef, RuleAST, Target, TileTarget, Trigger } from './ast';
+import { printExprText } from './printer';
 
 export type Translate = (key: string, params?: Record<string, string | number>) => string;
 
@@ -38,6 +39,15 @@ function valueText(e: Expr, t: Translate): string {
       return t('explain.worldVar', { name: e.name });
     case 'amount':
       return t('explain.amount');
+    case 'var':
+    case 'varProp':
+    case 'query':
+    case 'none':
+    case 'figureRef':
+    case 'tileRef':
+    case 'targets':
+    case 'tiles':
+      return printExprText(e, 'de');
     default:
       return condText(e, t);
   }
@@ -68,10 +78,12 @@ function opKey(op: string): string {
 }
 
 function targetText(tg: Target, t: Translate): string {
+  if (tg.kind === 'value') return printExprText(tg.expr, 'de');
   return tg.kind === 'ref' ? figure(tg.ref, t) : t(`explain.target.${tg.kind}`);
 }
 
 function tileText(tt: TileTarget, t: Translate): string {
+  if (tt.kind === 'value') return printExprText(tt.expr, 'de');
   if (tt.kind === 'figureTile') return t('explain.tileOf', { of: figure(tt.ref, t) });
   if (tt.kind === 'tilesOfType') return t('explain.tile.tilesOfType', { type: tt.tileType });
   return t(`explain.tile.${tt.kind}`);
@@ -111,6 +123,11 @@ export function effectText(e: Effect, t: Translate): string {
     }
     case 'message':
       return t('explain.effect.message', { text: e.text });
+    case 'call':
+      return t('explain.effect.call', {
+        name: e.effect,
+        args: e.args.map((a) => printExprText(a, 'de')).join(', '),
+      });
   }
 }
 
