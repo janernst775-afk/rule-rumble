@@ -139,3 +139,32 @@ Abweichungen von der Spec und technische Entscheidungen, neueste unten.
   - Texturen kommen nur mit, wenn ihr Name in einem Text der Regeln oder des Codes vorkommt.
   - „Als Paket speichern“ exportiert die gewählte Regel. „Alles als Paket“ exportiert alle eigenen Regeln samt Werkstatt.
   - Beim Import wird jedes Teil geprüft, ungültige werden gezählt und verworfen. Gleichnamige Effekte, Funktionen und NPC-Typen werden überschrieben. Regeln mit vergebener ID bekommen eine neue.
+
+## 2026-11-07 – Umsetzung v0.7
+
+- **Format der Aufnahmen:**
+  - Gespeichert wird mono, 16 Bit, 22 050 Hz als WAV-Data-URL. Zuschnitt und Lautstärke sind beim Speichern schon eingerechnet; 3 s ergeben etwa 180 kB.
+  - Die Aufnahme selbst läuft über MediaRecorder und Web Audio (`decodeAudioData`); die WAV-Kodierung ist eigener Code (`audio/wav.ts`).
+  - Wer einen gespeicherten Sound bearbeitet, schneidet die gespeicherte Fassung erneut zu.
+- **Speicher:** IndexedDB, Datenbank-Version 2 mit neuer Tabelle `sounds` neben `textures`.
+- **Sound-Namen:**
+  - Erlaubt sind Kleinbuchstaben, Ziffern und `_` (Umlaute erlaubt), höchstens 30 Zeichen. Jeder Name ist eindeutig.
+  - `SPIELE "name"` sucht den Namen ohne Groß-/Kleinschreibung. Fehlt die Aufnahme, erklingt der synthetische Standard-Sound `ruleSound`.
+- **NPC-Sound:** Feld `NpcType.sound` (Name eines Sounds). Er erklingt, wenn der NPC erscheint und wenn er am Zug ist. Die Engine merkt davon nichts; die UI spielt ihn zu den Ereignissen `spawned` und `turnStarted`.
+- **„Eigene Sounds anderer Spieler stumm“:**
+  - Lokale Vorliebe (`rr.prefs`), kein Spiel-Setting.
+  - Ein Sound gilt als fremd, wenn sein Autor nicht der eigene Profilname ist (z. B. aus einem importierten Paket). Statt der Aufnahme spielt dann der synthetische Standard-Sound.
+- **Ein Sound für jedes Spielereignis:** Alle Spielsounds kommen jetzt zentral aus den Ereignissen (`audio/eventSounds.ts`, als vollständige Tabelle über alle Ereignistypen).
+  - Stumm bleiben nur Begleit-Ereignisse: `tileLeft`, `turnEnded`, `roundEnded`, `waited` und `gameOver` (Sieg-/Niederlage-Jingle auf dem Ergebnis).
+  - Je Engine-Schritt spielen höchstens 4 verschiedene Sounds, leicht versetzt; ein angeforderter `SPIELE`-Sound hat Vorrang.
+  - Die doppelten Feld-Sounds beim Klick und im Bot-Treiber sind entfallen.
+- **`SPIELE` in Regeln ist kein Profi-Code:** Ein `DANN SPIELE "name"` wird als Code-Effekt gespeichert, zählt aber als Grundaktion (SPEC 5.7). Es ist also auch bei ausgeschaltetem Profi-Code erlaubt.
+  - Im Regel-Editor gibt es dafür den Baustein „Sound abspielen“. Seine Auswahl bietet die eigenen Aufnahmen an; fehlende Namen sind als „nicht aufgenommen“ markiert.
+- **Sound-Dialog** in der Effekt-Werkstatt („Sounds“, „+ Sound“):
+  - Aufnahme bis 3 s, die nach 3 s automatisch stoppt.
+  - Wellenform als SVG (kein Canvas), Anfang/Ende und Lautstärke (20–200 %) als Schieberegler.
+  - Name, Abspielen, Speichern, Löschen.
+  - Ohne Mikrofon oder ohne Erlaubnis erscheint eine Fehlermeldung.
+- **Pakete:** `sounds` enthält Aufnahmen, deren Name in Regeln, Effekten, Funktionen oder NPC-Code als Text vorkommt oder die ein NPC-Typ als Sound nutzt.
+  - Beim Import werden nur WAV-Data-URLs bis 600 kB und bis 3 s mit gültigem Namen angenommen.
+  - Gleichnamige Sounds werden ersetzt, der Autor bleibt erhalten.

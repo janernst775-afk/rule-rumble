@@ -155,10 +155,10 @@ Reihenfolge ist verbindlich. Jeder Meilenstein endet mit Bericht und Stopp (sieh
 
 **Spec lesen:** 8.2
 
-- [ ] Mikrofon-Aufnahme bis 3 s mit MediaRecorder, Zuschneiden, Lautstärke, Name
-- [ ] Sounds in IndexedDB, nutzbar in Regeln/Effekten (`SPIELE`) und als NPC-Sound
-- [ ] Option „Eigene Sounds anderer Spieler stumm“ (für später online)
-- [ ] Alle Spielereignisse haben einen synthetischen Standard-Sound
+- [x] Mikrofon-Aufnahme bis 3 s mit MediaRecorder, Zuschneiden, Lautstärke, Name
+- [x] Sounds in IndexedDB, nutzbar in Regeln/Effekten (`SPIELE`) und als NPC-Sound
+- [x] Option „Eigene Sounds anderer Spieler stumm“ (für später online)
+- [x] Alle Spielereignisse haben einen synthetischen Standard-Sound
 
 **Abnahme:** Ein aufgenommener Sound wird durch eine eigene Regel im Spiel abgespielt.
 
