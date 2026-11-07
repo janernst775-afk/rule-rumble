@@ -96,3 +96,46 @@ Abweichungen von der Spec und technische Entscheidungen, neueste unten.
 - **Speicherort:** Eigene Effekte und NPC-Typen liegen in `localStorage` (`rr.workshop`); die Werkstatt ist über Bibliothek und Regel-Editor erreichbar. Eingebaute NPC-Typen sind sichtbar, aber nicht änderbar.
 - **Bausteine der Werkstatt:** Ausdrücke werden über Auswahllisten verschachtelt (Abfrage → Argumente). Für eine Textform von Effekt-Körpern gibt es noch keine Syntax; sie kommt mit dem Profi-Modus (v0.6).
 - **Kompakte Auswahllisten** nutzen `field-sizing: content` (Chromium); andere Browser zeigen breitere Listen, funktional gleich.
+
+## 2026-11-07 – Umsetzung v0.6
+
+- **Ergänzungen für die SPEC-5.8-Beispiele:**
+  - Neuer Feldtyp `wasser` (en `water`). Wie alle Feldtypen ist er nur ein Kennzeichen; Wirkung bekommt er erst durch Regeln.
+  - Neue Abfrage `felder_am_rand`: Felder mit weniger als vier Nachbarn.
+  - `selbst` gibt es nur im NPC-Zug.
+  - `TELEPORT ziel NEBEN feld` springt auf ein zufälliges freies Nachbarfeld.
+- **Zwei Tiefen-Grenzen:**
+  - Effekt-Aufrufe: höchstens 5 tief (SPEC 5.7).
+  - Funktions-Rekursion: höchstens 20 (SPEC 5.8).
+  - Weitere feste Schutzwerte in `CODE_LIMITS`:
+    - `NACH` 1–10 Runden
+    - höchstens 20 wartende Blöcke
+    - 200 Anweisungen und 10 Ebenen je Code-Definition (Baustein-Effekte bleiben bei 40/6)
+    - Texte bis 200 Zeichen
+- **Ein Parser für alles:** `parseProgram` liest Regeln, `EFFEKT`, `FUNKTION` und `NPC "…" ZUG` aus einem Text.
+  - Regeln bleiben zeilenbasiert. Ein `DANN`/`SONST` darf eine Code-Anweisung oder einen Block (`DANN WENN … ENDE`) enthalten; das wird ein Effekt `{ kind: 'code' }`.
+  - Lokale Variablen und Parameter verdecken Wörter der Regel-Sprache (`ziel`, `menge`).
+  - `WENN … DANN` im Block ist optional mit `DANN`; `FÜR JEDE/JEDES/JEDEN` sind gleichwertig.
+  - Parametertypen im Kopf: `Zahl, Text, Figur, Feld, Figuren, Felder, NPC_Typ, Textur, Sound`.
+- **Regeln mit Code:** Ein Code-`DANN` zählt als ein Effekt (Grenze 3). Jede Grundaktion darin läuft weiter durch die Primitives und deren Grenzen.
+- **Eigene Ereignisse** (`SENDE`/`WENN EREIGNIS`) haben keine Kontextwerte (wie `RUNDENSTART`) und unterliegen der Kettentiefe 3.
+- **`NACH n RUNDEN`** speichert Block, lokale Variablen und Kontext als JSON in `GameState.delayed`. Der Block läuft beim Rundenstart vor den Regeln. Ist seine Regel nicht mehr im Spiel, entfällt er.
+- **NPC-Code** (`NpcType.code`) ersetzt nur die Bewegungsvorlage; der automatische Angriff auf dem eigenen Feld bleibt. Kontext: `selbst`, `feld` = Feld des NPCs.
+- **Funktionen sind rein:** Der Validator verbietet Grundaktionen, `SPIELE`, `TEXTUR`, `WARTE`, `SENDE`, `NACH` und `ZEIGE`; die Laufzeit ignoriert sie zusätzlich. Funktionen reisen im Bundle mit (`bundle.functions`, auch transitiv über NPC-Code).
+- **Texte behalten ihre Schreibweise:** Vergleiche bleiben ohne Groß-/Kleinschreibung. Dadurch heißt eine per `TEXTUR` erzeugte Textur jetzt „Sumpf“ statt „sumpf“.
+- **Einstellung „Profi-Code erlaubt“:** Ist sie aus, lehnt der Validator jede Profi-Konstruktion ab (`proCodeDisabled`). Normale Regeln und Baustein-Effekte bleiben erlaubt.
+- **Debugger:** Der Interpreter zeichnet je Anweisung Zeile, lokale Variablen und Budget auf (höchstens 2000 Schritte). Die UI spielt die Aufzeichnung ab („Schritt“/„Weiter“).
+  - Testgrundlage ist ein Demo-Spiel: Effekte laufen mit dem ersten Helden als Auslöser, NPC-Code mit einem frisch erschienenen NPC.
+  - Die Variablen-Ansicht zeigt Figurennamen. Für den Code selbst bleiben Namen unlesbar.
+- **Code-Editor:** CodeMirror 6 (`@codemirror/state, view, commands, language, autocomplete, lint` plus `@lezer/highlight`).
+  - Syntax-Farben über einen StreamLanguage-Tokenizer, dessen Wörter aus `keywords.ts` kommen.
+  - Die Werkstatt wird erst beim Öffnen nachgeladen (eigener Chunk).
+- **Werkstatt-Aufbau:**
+  - Umschalter „Bausteine | Profi-Code“ je Effekt. Code mit Fehlern lässt sich nicht zurück in Bausteine schalten.
+  - Funktionen gibt es nur als Code.
+  - Neue „Code-Datei“ für ganze Programme wie die SPEC-Beispiele. „Übernehmen“ verteilt Effekte und Funktionen in die Werkstatt, NPC-Verhalten an eigene NPC-Typen (die es schon geben muss) und Regeln in die Bibliothek.
+- **Grauer Code-Baustein:** Anweisungen mit Profi-Teilen (Rechnen, Listen, Funktionsaufrufe, `SOLANGE`, `SENDE`, `NACH`, `ZEIGE` mit Ausdruck, `NEBEN`) erscheinen in der Baustein-Ansicht als grauer Block. Ein Klick öffnet die Code-Ansicht. Im Regel-Editor erscheint ein Code-`DANN` als graues Code-Feld.
+- **Regel-Pakete** (`rule-rumble/package`, Version 1) enthalten Regeln, Effekte, Funktionen, NPC-Typen (mit Bild und Code), Texturen und `sounds` (bis v0.7 leer).
+  - Texturen kommen nur mit, wenn ihr Name in einem Text der Regeln oder des Codes vorkommt.
+  - „Als Paket speichern“ exportiert die gewählte Regel. „Alles als Paket“ exportiert alle eigenen Regeln samt Werkstatt.
+  - Beim Import wird jedes Teil geprüft, ungültige werden gezählt und verworfen. Gleichnamige Effekte, Funktionen und NPC-Typen werden überschrieben. Regeln mit vergebener ID bekommen eine neue.

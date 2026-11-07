@@ -139,13 +139,13 @@ Reihenfolge ist verbindlich. Jeder Meilenstein endet mit Bericht und Stopp (sieh
 
 **Spec lesen:** 5.8
 
-- [ ] Funktionen, Solange, Listen, Text, eigene Ereignisse (`SENDE`/`WENN EREIGNIS`), `NACH n RUNDEN`, Welt-Variablen, eigenes NPC-Verhalten
-- [ ] Code-Editor mit CodeMirror 6: Syntax-Farben, Autovervollständigung (Schlüsselwörter, Kontextwerte, eigene Effekte, Texturen, Sounds), Fehler in der Zeile
-- [ ] Debugger: Schritt für Schritt, Variablen-Ansicht, Budget-Anzeige
-- [ ] Profi-Code in der Baustein-Ansicht als grauer „Code-Baustein“
-- [ ] Einstellung „Profi-Code erlaubt“ wird respektiert
-- [ ] Regel-Pakete exportieren/importieren (Regeln, Effekte, NPC-Typen, Texturen, Sounds in einer JSON-Datei)
-- [ ] Tests: alle Profi-Beispiele aus SPEC 5.8 laufen, Sicherheitsgrenzen greifen
+- [x] Funktionen, Solange, Listen, Text, eigene Ereignisse (`SENDE`/`WENN EREIGNIS`), `NACH n RUNDEN`, Welt-Variablen, eigenes NPC-Verhalten
+- [x] Code-Editor mit CodeMirror 6: Syntax-Farben, Autovervollständigung (Schlüsselwörter, Kontextwerte, eigene Effekte, Texturen, Sounds), Fehler in der Zeile
+- [x] Debugger: Schritt für Schritt, Variablen-Ansicht, Budget-Anzeige
+- [x] Profi-Code in der Baustein-Ansicht als grauer „Code-Baustein“
+- [x] Einstellung „Profi-Code erlaubt“ wird respektiert
+- [x] Regel-Pakete exportieren/importieren (Regeln, Effekte, NPC-Typen, Texturen, Sounds in einer JSON-Datei)
+- [x] Tests: alle Profi-Beispiele aus SPEC 5.8 laufen, Sicherheitsgrenzen greifen
 
 **Abnahme:** Die Beispiele „schwächste()“, „Geist“ und „Flut“ aus SPEC 5.8 laufen unverändert.
 
