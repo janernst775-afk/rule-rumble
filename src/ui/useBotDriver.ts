@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { chooseTurn } from '../bots/chooseTurn';
+import { chooseTurn, type BotOptions } from '../bots/chooseTurn';
+import { useLibrary } from '../store/libraryStore';
+import { allNpcTypes, useWorkshop, withBundleFromWorkshop } from '../store/workshopStore';
 import { chooseVote } from '../bots/ruleChoice';
 import { isSameTurn } from '../bots/simulate';
 import { baseWheelChance } from '../engine/query';
@@ -36,7 +38,7 @@ export function useBotDriver(): void {
       await wait(THINK_MS * tempo);
       const state = store().game;
       if (!state || store().generation !== generation) return;
-      const turn = chooseTurn(state);
+      const turn = chooseTurn(state, botOptions());
       if (!turn) return;
       let current = state;
       if (turn.action.type === 'npcAct') {
@@ -70,7 +72,7 @@ export function useBotDriver(): void {
         if (after && current && isSameTurn(current, after)) {
           await wait(THINK_MS * tempo);
           if (store().generation !== generation) return;
-          const second = chooseTurn(after);
+          const second = chooseTurn(after, botOptions());
           if (second) {
             store().dispatch(second.action);
           }
@@ -103,4 +105,16 @@ export function useBotDriver(): void {
       });
     }, THINK_MS * tempo);
   }, [game, wheel, anim, generation]);
+}
+
+/** Bots on "Schwer" may also bring the player's own library rules (SPEC 7). */
+function botOptions(): BotOptions {
+  const ws = useWorkshop.getState();
+  return {
+    extraRules: useLibrary
+      .getState()
+      .rules.map((r) =>
+        withBundleFromWorkshop(r, ws.effects, allNpcTypes(ws.npcTypes), ws.functions ?? []),
+      ),
+  };
 }

@@ -5,12 +5,11 @@ import { manhattan } from '../engine/board';
 import { attackTargets, currentFigure, moveOptions } from '../engine/query';
 import { applyAction } from '../engine/reducer';
 import { randomPick, type RngHolder } from '../engine/rng';
-import { oldestRule, ruleSlotsFull } from '../engine/rules';
+import { addRuleError, oldestRule, ruleSlotsFull } from '../engine/rules';
 import type { Action, Figure, FigureId, GameEvent, GameState } from '../engine/types';
 import type { RuleDefinition } from '../lang/ast';
 import { START_RULES } from '../lang/library/startRules';
 import { ruleStrength } from '../lang/strength';
-import { validateRule } from '../lang/validator';
 import { evaluate } from './evaluate';
 
 /** How many rounds the look-ahead plays. */
@@ -82,15 +81,18 @@ function lookahead(state: GameState, me: FigureId): number {
 }
 
 /** Library rules the running game accepts and that are not in play yet. */
-export function candidateRules(state: GameState): RuleDefinition[] {
+export function candidateRules(
+  state: GameState,
+  extra: readonly RuleDefinition[] = [],
+): RuleDefinition[] {
   const active = new Set(state.rules.map((r) => r.def.id));
   // SPEC 6.3: bots do not stack "heavy" rules.
   const heavyInPlay = state.rules.filter((r) => ruleStrength(r.def.ast).level === 'heavy').length;
-  return START_RULES.filter(
+  return [...START_RULES, ...extra].filter(
     (r) =>
       !active.has(r.id) &&
       !(heavyInPlay >= MAX_HEAVY_RULES && ruleStrength(r.ast).level === 'heavy') &&
-      validateRule(r.ast, state.settings, state.npcTypes).length === 0,
+      addRuleError(state, r, undefined) !== 'invalidRule',
   );
 }
 
@@ -109,11 +111,15 @@ export function chooseVote(state: GameState, voter: FigureId): string {
  * Picks a rule for the figure on turn (in its action phase), or null if no candidate
  * helps enough. `afterMove` is the state after the bot's move.
  */
-export function chooseRule(afterMove: GameState, rng: RngHolder): Action | null {
+export function chooseRule(
+  afterMove: GameState,
+  rng: RngHolder,
+  extra: readonly RuleDefinition[] = [],
+): Action | null {
   const me = currentFigure(afterMove);
   if (!me || me.kind === 'npc') return null;
   if (ruleSlotsFull(afterMove) && afterMove.settings.rules.overflow === 'blockNew') return null;
-  const pool = [...candidateRules(afterMove)];
+  const pool = [...candidateRules(afterMove, extra)];
   const picked: RuleDefinition[] = [];
   while (picked.length < CANDIDATES && pool.length > 0) {
     const r = randomPick(rng, pool);

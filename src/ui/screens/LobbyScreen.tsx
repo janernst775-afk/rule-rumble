@@ -50,9 +50,8 @@ function SeatRow({ seat, lobby }: { seat: L.LobbySeat; lobby: L.Lobby }) {
             }
           >
             {DIFFICULTIES.map((d) => (
-              <option key={d} value={d} disabled={d !== 'normal'}>
+              <option key={d} value={d}>
                 {t(`lobby.difficulties.${d}`)}
-                {d !== 'normal' ? ` (${t('common.fromVersion', { version: 'v0.8' })})` : ''}
               </option>
             ))}
           </select>

@@ -1,6 +1,6 @@
 import { applyAction } from '../engine/reducer';
 import type { GameState } from '../engine/types';
-import { chooseTurn } from './chooseTurn';
+import { chooseTurn, type BotOptions } from './chooseTurn';
 import { chooseVote } from './ruleChoice';
 
 /** Lets every bot voter cast its vote (overflow "Abstimmung"). */
@@ -19,9 +19,9 @@ export function playBotVotes(state: GameState): GameState {
 }
 
 /** Executes one complete bot turn (move, then action) via applyAction only. */
-export function playBotTurn(state: GameState): GameState {
+export function playBotTurn(state: GameState, opts: BotOptions = {}): GameState {
   if (state.pendingVote) return playBotVotes(state);
-  const turn = chooseTurn(state);
+  const turn = chooseTurn(state, opts);
   if (!turn) return state;
   let s = state;
   if (s.turn.phase === 'move' && turn.action.type !== 'npcAct') {
@@ -35,7 +35,7 @@ export function playBotTurn(state: GameState): GameState {
   if (!acted.ok) throw new Error(`bot action rejected: ${acted.error.code}`);
   if (acted.state.pendingVote) return playBotVotes(acted.state);
   // "Tile actions count double": the same figure may still be in its action phase.
-  if (isSameTurn(s, acted.state)) return playBotTurn(acted.state);
+  if (isSameTurn(s, acted.state)) return playBotTurn(acted.state, opts);
   return acted.state;
 }
 

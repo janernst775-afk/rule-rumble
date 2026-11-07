@@ -1,5 +1,8 @@
-// Bot turn selection (SPEC 7, difficulty "normal"): try every move × action on a
-// copy of the state via applyAction and pick the best expected score.
+// Bot turn selection (SPEC 7): try every move × action on a copy of the state via
+// applyAction and pick the best expected score. Difficulties:
+// - Leicht: 40 % random choice, only library rules
+// - Normal: evaluation, 15 % random choice
+// - Schwer: evaluation with one turn of look-ahead, own rules as extra candidates
 import { applyAction } from '../engine/reducer';
 import {
   actionAvailability,
@@ -10,19 +13,27 @@ import {
 } from '../engine/query';
 import { removableTiles, validAddPositions } from '../engine/tiles';
 import { deriveRng, randomFloat, randomInt, type RngHolder } from '../engine/rng';
-import type { Action, Figure, GameState, Pos } from '../engine/types';
+import type { RuleDefinition } from '../lang/ast';
+import type { Action, Difficulty, Figure, GameState, Pos } from '../engine/types';
 import { evaluate } from './evaluate';
-import { chooseRule } from './ruleChoice';
+import { chooseRule, fastTurn } from './ruleChoice';
 
 /** Chance to look for a rule when the best plan is to pass. */
-const RULE_CONSIDER_CHANCE = 0.35;
+const RULE_CONSIDER_CHANCE: Record<Difficulty, number> = { easy: 0.35, normal: 0.35, hard: 0.5 };
+/** Schwer: the best candidates are checked again with one turn of look-ahead. */
+const LOOKAHEAD_CANDIDATES = 6;
 /** Tile actions must beat passing by this margin, so bots do not reshape the board for nothing. */
 const TILE_ACTION_COST = 0.75;
 /** Only the best move destinations are checked for tile actions (performance). */
 const TILE_ACTION_MOVES = 3;
 
-/** Chance of a random choice per difficulty (easy/hard become available in v0.8). */
-const RANDOMNESS = { easy: 0.4, normal: 0.15, hard: 0.15 } as const;
+/** Chance of a random choice per difficulty (SPEC 7). */
+const RANDOMNESS: Record<Difficulty, number> = { easy: 0.4, normal: 0.15, hard: 0.05 };
+
+export interface BotOptions {
+  /** Schwer: rules from the player's own library, tried next to the start rules. */
+  extraRules?: readonly RuleDefinition[];
+}
 
 export interface BotTurn {
   path: Pos[];
@@ -114,8 +125,33 @@ function tileCandidates(after: GameState, me: Figure, path: Pos[]): Candidate[] 
   return out;
 }
 
+/** Plays a candidate and the next figure's quick reply; the score after that reply. */
+function lookaheadScore(state: GameState, me: Figure, c: Candidate): number {
+  let s = state;
+  if (s.turn.phase === 'move') {
+    const moved = applyAction(s, { type: 'move', actor: me.id, path: c.path });
+    if (!moved.ok) return c.score;
+    s = moved.state;
+  }
+  if (currentFigure(s)?.id === me.id && s.status === 'playing') {
+    const acted = applyAction(s, c.action);
+    if (!acted.ok) return c.score;
+    s = acted.state;
+  }
+  // The following figure answers with the quick policy (walk to an enemy, attack).
+  for (let i = 0; i < 3 && s.status === 'playing' && currentFigure(s)?.id !== me.id; i++) {
+    const next = fastTurn(s);
+    if (next === s) break;
+    s = next;
+    if (currentFigure(s)?.kind !== 'npc') break;
+  }
+  const after = evaluate(s, me.id);
+  // Expected attack value stays part of the score; the reply adjusts it.
+  return (c.score + after) / 2;
+}
+
 /** Chooses the full turn (move + action) for the figure currently on turn. */
-export function chooseTurn(state: GameState): BotTurn | null {
+export function chooseTurn(state: GameState, opts: BotOptions = {}): BotTurn | null {
   const me = currentFigure(state);
   if (!me) return null;
   if (me.kind === 'npc') return { path: [], action: { type: 'npcAct', actor: me.id } };
@@ -129,6 +165,10 @@ export function chooseTurn(state: GameState): BotTurn | null {
   if (randomFloat(rng) < RANDOMNESS[difficulty]) {
     const pick = candidates[randomInt(rng, candidates.length)];
     if (pick) return { path: pick.path, action: pick.action };
+  }
+  if (difficulty === 'hard') {
+    const top = [...candidates].sort((a, b) => b.score - a.score).slice(0, LOOKAHEAD_CANDIDATES);
+    for (const c of top) c.score = lookaheadScore(state, me, c) + 1e-6;
   }
 
   let best = candidates[0]!;
@@ -144,10 +184,12 @@ export function chooseTurn(state: GameState): BotTurn | null {
   }
   const chosen = ties.length > 1 ? (ties[randomInt(rng, ties.length)] ?? best) : best;
   // Nothing better to do: sometimes look for a rule that helps (SPEC 7, "Regelwahl").
-  if (chosen.action.type === 'pass' && randomFloat(rng) < RULE_CONSIDER_CHANCE) {
+  if (chosen.action.type === 'pass' && randomFloat(rng) < RULE_CONSIDER_CHANCE[difficulty]) {
     const afterMove = stateAfterMove(state, me.id, chosen.path);
     if (afterMove && actionAvailability(afterMove, 'addRule').available) {
-      const ruleAction = chooseRule(afterMove, rng);
+      // Only Schwer uses own rules; Leicht and Normal stay with the library (SPEC 7).
+      const extra = difficulty === 'hard' ? (opts.extraRules ?? []) : [];
+      const ruleAction = chooseRule(afterMove, rng, extra);
       if (ruleAction) return { path: chosen.path, action: ruleAction };
     }
   }
