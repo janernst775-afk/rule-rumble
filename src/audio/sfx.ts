@@ -11,7 +11,27 @@ export type SfxId =
   | 'victory'
   | 'defeat'
   | 'tileAdd'
-  | 'tileRemove';
+  | 'tileRemove'
+  // Game events (v0.7): every event has a synthetic default sound.
+  | 'round'
+  | 'turn'
+  | 'attack'
+  | 'spawn'
+  | 'ruleAdd'
+  | 'ruleActive'
+  | 'ruleRemove'
+  | 'ruleFired'
+  | 'blocked'
+  | 'message'
+  | 'heal'
+  | 'status'
+  | 'skip'
+  | 'dodge'
+  | 'tileType'
+  | 'vote'
+  | 'signal'
+  /** SPIELE "name" without a recorded sound of that name */
+  | 'ruleSound';
 
 interface Tone {
   type: OscillatorType;
@@ -150,6 +170,146 @@ export function playSynthSfx(ctx: AudioContext, out: AudioNode, id: SfxId): void
     case 'tileRemove':
       noise(ctx, out, t, 0.25, 0.25, 900);
       tone(ctx, out, t, { type: 'sine', from: 260, to: 70, start: 0, duration: 0.3, volume: 0.25 });
+      break;
+    case 'round':
+      [NOTES.C5, NOTES.G5].forEach((f, i) =>
+        tone(ctx, out, t, { type: 'sine', from: f, start: i * 0.09, duration: 0.25, volume: 0.15 }),
+      );
+      break;
+    case 'turn':
+      tone(ctx, out, t, { type: 'sine', from: 660, start: 0, duration: 0.08, volume: 0.12 });
+      break;
+    case 'attack':
+      noise(ctx, out, t, 0.15, 0.15, 3500);
+      tone(ctx, out, t, {
+        type: 'sine',
+        from: 500,
+        to: 900,
+        start: 0,
+        duration: 0.12,
+        volume: 0.1,
+      });
+      break;
+    case 'spawn':
+      tone(ctx, out, t, {
+        type: 'sawtooth',
+        from: 90,
+        to: 180,
+        start: 0,
+        duration: 0.35,
+        volume: 0.15,
+      });
+      noise(ctx, out, t, 0.3, 0.12, 500);
+      break;
+    case 'ruleAdd':
+      [NOTES.E5, NOTES.G5, NOTES.C6].forEach((f, i) =>
+        tone(ctx, out, t, {
+          type: 'triangle',
+          from: f,
+          start: i * 0.07,
+          duration: 0.12,
+          volume: 0.18,
+        }),
+      );
+      break;
+    case 'ruleActive':
+      tone(ctx, out, t, {
+        type: 'triangle',
+        from: 523,
+        to: 1046,
+        start: 0,
+        duration: 0.25,
+        volume: 0.18,
+      });
+      break;
+    case 'ruleRemove':
+      tone(ctx, out, t, {
+        type: 'triangle',
+        from: 784,
+        to: 392,
+        start: 0,
+        duration: 0.25,
+        volume: 0.16,
+      });
+      break;
+    case 'ruleFired':
+      tone(ctx, out, t, { type: 'sine', from: 1046, start: 0, duration: 0.15, volume: 0.15 });
+      tone(ctx, out, t, { type: 'sine', from: 1568, start: 0.05, duration: 0.15, volume: 0.1 });
+      break;
+    case 'blocked':
+      tone(ctx, out, t, { type: 'square', from: 140, start: 0, duration: 0.12, volume: 0.1 });
+      break;
+    case 'message':
+      tone(ctx, out, t, { type: 'triangle', from: 880, start: 0, duration: 0.08, volume: 0.15 });
+      tone(ctx, out, t, { type: 'triangle', from: 1175, start: 0.09, duration: 0.1, volume: 0.15 });
+      break;
+    case 'heal':
+      tone(ctx, out, t, {
+        type: 'sine',
+        from: 440,
+        to: 880,
+        start: 0,
+        duration: 0.35,
+        volume: 0.2,
+      });
+      break;
+    case 'status':
+      tone(ctx, out, t, {
+        type: 'triangle',
+        from: 600,
+        to: 750,
+        start: 0,
+        duration: 0.15,
+        volume: 0.15,
+      });
+      break;
+    case 'skip':
+      tone(ctx, out, t, {
+        type: 'sine',
+        from: 300,
+        to: 200,
+        start: 0,
+        duration: 0.25,
+        volume: 0.15,
+      });
+      break;
+    case 'dodge':
+      noise(ctx, out, t, 0.12, 0.12, 5000);
+      break;
+    case 'tileType':
+      tone(ctx, out, t, {
+        type: 'sine',
+        from: 350,
+        to: 520,
+        start: 0,
+        duration: 0.2,
+        volume: 0.15,
+      });
+      noise(ctx, out, t, 0.15, 0.06, 2000);
+      break;
+    case 'vote':
+      tone(ctx, out, t, { type: 'square', from: 520, start: 0, duration: 0.1, volume: 0.08 });
+      tone(ctx, out, t, { type: 'square', from: 520, start: 0.15, duration: 0.1, volume: 0.08 });
+      break;
+    case 'signal':
+      tone(ctx, out, t, {
+        type: 'sawtooth',
+        from: 400,
+        to: 1200,
+        start: 0,
+        duration: 0.3,
+        volume: 0.1,
+      });
+      break;
+    case 'ruleSound':
+      tone(ctx, out, t, {
+        type: 'triangle',
+        from: 700,
+        to: 500,
+        start: 0,
+        duration: 0.18,
+        volume: 0.18,
+      });
       break;
     case 'victory':
       [NOTES.C5, NOTES.E5, NOTES.G5, NOTES.C6].forEach((f, i) =>

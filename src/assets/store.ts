@@ -1,4 +1,5 @@
-// Texture library persisted in IndexedDB (SPEC 4.1). The game state only holds texture ids.
+// Texture and sound libraries persisted in IndexedDB (SPEC 4.1, 8.2). The game state only
+// holds texture ids and sound names.
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
 export interface TextureRecord {
@@ -12,6 +13,25 @@ export interface TextureRecord {
   inLibrary: boolean;
 }
 
+/** A recorded sound (SPEC 8.2): rules play it with SPIELE "name". */
+export interface SoundRecord {
+  id: string;
+  /** Unique, lower case: letters, digits, _ */
+  name: string;
+  /** Mono WAV as data URL (already trimmed and volume-adjusted). */
+  dataUrl: string;
+  durationMs: number;
+  /** Name of the player who recorded it ("Eigene Sounds anderer Spieler stumm"). */
+  author: string;
+  createdAt: number;
+}
+
+export interface SoundRepo {
+  list(): Promise<SoundRecord[]>;
+  put(sound: SoundRecord): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
 export interface TextureRepo {
   list(): Promise<TextureRecord[]>;
   put(texture: TextureRecord): Promise<void>;
@@ -20,10 +40,11 @@ export interface TextureRepo {
 
 interface RuleRumbleDb extends DBSchema {
   textures: { key: string; value: TextureRecord };
+  sounds: { key: string; value: SoundRecord };
 }
 
 const DB_NAME = 'rule-rumble';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<RuleRumbleDb>> | null = null;
 
@@ -32,6 +53,9 @@ function db(): Promise<IDBPDatabase<RuleRumbleDb>> {
     upgrade(database) {
       if (!database.objectStoreNames.contains('textures')) {
         database.createObjectStore('textures', { keyPath: 'id' });
+      }
+      if (!database.objectStoreNames.contains('sounds')) {
+        database.createObjectStore('sounds', { keyPath: 'id' });
       }
     },
   });
@@ -57,6 +81,31 @@ export function createMemoryTextureRepo(initial: TextureRecord[] = []): TextureR
     list: async () => [...map.values()],
     put: async (texture) => {
       map.set(texture.id, texture);
+    },
+    remove: async (id) => {
+      map.delete(id);
+    },
+  };
+}
+
+export function createIdbSoundRepo(): SoundRepo {
+  return {
+    list: async () => (await db()).getAll('sounds'),
+    put: async (sound) => {
+      await (await db()).put('sounds', sound);
+    },
+    remove: async (id) => {
+      await (await db()).delete('sounds', id);
+    },
+  };
+}
+
+export function createMemorySoundRepo(initial: SoundRecord[] = []): SoundRepo {
+  const map = new Map(initial.map((x) => [x.id, x]));
+  return {
+    list: async () => [...map.values()],
+    put: async (sound) => {
+      map.set(sound.id, sound);
     },
     remove: async (id) => {
       map.delete(id);

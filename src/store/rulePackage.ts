@@ -1,7 +1,8 @@
 // Rule packages (SPEC 5.9): rules, effects, functions, NPC types, textures and sounds in one
 // JSON file, so players can share whole game modes. Imported files are untrusted: every
 // part is shape-checked and validated before it is used.
-import type { TextureRecord } from '../assets/store';
+import type { SoundRecord, TextureRecord } from '../assets/store';
+import { MAX_SOUND_MS, WAV_PREFIX, soundName } from '../audio/wav';
 import { DEFAULT_NPC_TYPES } from '../engine/npc';
 import { validNpcType } from '../engine/rules';
 import { DEFAULT_SETTINGS } from '../engine/settings';
@@ -18,6 +19,14 @@ export interface PackageTexture {
   dataUrl: string;
 }
 
+export interface PackageSound {
+  id: string;
+  name: string;
+  dataUrl: string;
+  durationMs: number;
+  author: string;
+}
+
 export interface RulePackage {
   format: typeof PACKAGE_FORMAT;
   version: 1;
@@ -26,11 +35,13 @@ export interface RulePackage {
   functions: FunctionDef[];
   npcTypes: NpcType[];
   textures: PackageTexture[];
-  /** Own sounds (v0.7); always empty until then. */
-  sounds: unknown[];
+  /** Recorded sounds (WAV data URLs). */
+  sounds: PackageSound[];
 }
 
 const MAX_TEXTURE_URL = 400_000;
+/** 3 s of 22 kHz 16-bit WAV in base64 is about 180 kB. */
+const MAX_SOUND_URL = 600_000;
 
 function byName<T extends { name: string }>(list: readonly T[]): T[] {
   const seen = new Map<string, T>();
@@ -66,6 +77,7 @@ export function buildPackage(
   workshop: { effects: EffectDef[]; functions: FunctionDef[]; npcTypes: NpcType[] },
   textures: readonly TextureRecord[],
   includeWorkshop: boolean,
+  sounds: readonly SoundRecord[] = [],
 ): RulePackage {
   const allNpcs = [...DEFAULT_NPC_TYPES, ...workshop.npcTypes];
   const effects: EffectDef[] = includeWorkshop ? [...workshop.effects] : [];
@@ -88,6 +100,18 @@ export function buildPackage(
   const uniqueFunctions = byName(functions);
   const uniqueNpcs = [...new Map(npcTypes.map((n) => [n.id, n])).values()];
   const used = textsOf(out, uniqueEffects, uniqueFunctions);
+  for (const n of uniqueNpcs) {
+    if (n.sound) used.add(n.sound.toLowerCase());
+    if (n.code) {
+      visitStmts(
+        n.code,
+        () => {},
+        (e) => {
+          if (e.kind === 'str') used.add(e.value.toLowerCase());
+        },
+      );
+    }
+  }
   return {
     format: PACKAGE_FORMAT,
     version: 1,
@@ -98,7 +122,15 @@ export function buildPackage(
     textures: textures
       .filter((t) => used.has(t.name.toLowerCase()))
       .map((t) => ({ id: t.id, name: t.name, dataUrl: t.dataUrl })),
-    sounds: [],
+    sounds: sounds
+      .filter((s) => used.has(s.name.toLowerCase()))
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        dataUrl: s.dataUrl,
+        durationMs: s.durationMs,
+        author: s.author,
+      })),
   };
 }
 
@@ -108,6 +140,7 @@ export interface PackageImport {
   functions: FunctionDef[];
   npcTypes: NpcType[];
   textures: PackageTexture[];
+  sounds: PackageSound[];
   rejected: number;
 }
 
@@ -147,7 +180,8 @@ function looksLikeNpc(v: unknown): v is NpcType {
     typeof v.symbol === 'string' &&
     typeof v.color === 'string' &&
     (v.image === undefined || v.image === null || typeof v.image === 'string') &&
-    (v.code === undefined || v.code === null || Array.isArray(v.code))
+    (v.code === undefined || v.code === null || Array.isArray(v.code)) &&
+    (v.sound === undefined || v.sound === null || typeof v.sound === 'string')
   );
 }
 
@@ -173,6 +207,23 @@ function looksLikeTexture(v: unknown): v is PackageTexture {
     typeof v.dataUrl === 'string' &&
     v.dataUrl.startsWith('data:image/png;base64,') &&
     v.dataUrl.length <= MAX_TEXTURE_URL
+  );
+}
+
+function looksLikeSound(v: unknown): v is PackageSound {
+  return (
+    isObject(v) &&
+    typeof v.id === 'string' &&
+    typeof v.name === 'string' &&
+    v.name.length > 0 &&
+    soundName(v.name) === v.name &&
+    typeof v.author === 'string' &&
+    typeof v.durationMs === 'number' &&
+    v.durationMs > 0 &&
+    v.durationMs <= MAX_SOUND_MS + 100 &&
+    typeof v.dataUrl === 'string' &&
+    v.dataUrl.startsWith(WAV_PREFIX) &&
+    v.dataUrl.length <= MAX_SOUND_URL
   );
 }
 
@@ -211,6 +262,7 @@ export function readPackage(
   const npcTypes = keep(list(raw.npcTypes), looksLikeNpc);
   const rules = keep(list(raw.rules), looksLikeRule);
   const textures = keep(list(raw.textures), looksLikeTexture);
+  const sounds = keep(list(raw.sounds), looksLikeSound);
 
   // Everything is checked together with what the player already has.
   const S = DEFAULT_SETTINGS;
@@ -254,6 +306,7 @@ export function readPackage(
     functions: okFunctions,
     npcTypes: okNpcs,
     textures,
+    sounds: sounds.map((s) => ({ ...s, author: s.author.slice(0, 30) })),
     rejected,
   };
 }

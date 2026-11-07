@@ -69,6 +69,34 @@ export function playSfx(id: SfxId): void {
   playSynthSfx(g.ctx, g.sfx, id);
 }
 
+const decoded = new Map<string, Promise<AudioBuffer | null>>();
+
+/** Plays a recorded sound (WAV data URL); `key` identifies it for the decode cache. */
+export function playRecorded(key: string, dataUrl: string): void {
+  const g = graph;
+  if (!g || g.ctx.state !== 'running' || volumes.muted) return;
+  let buffer = decoded.get(key);
+  if (!buffer) {
+    buffer = fetch(dataUrl)
+      .then((r) => r.arrayBuffer())
+      .then((b) => g.ctx.decodeAudioData(b))
+      .catch(() => null);
+    decoded.set(key, buffer);
+  }
+  void buffer.then((b) => {
+    if (!b) return;
+    const src = g.ctx.createBufferSource();
+    src.buffer = b;
+    src.connect(g.sfx);
+    src.start();
+  });
+}
+
+/** The shared AudioContext (recording previews); null without Web Audio. */
+export function audioContext(): AudioContext | null {
+  return ensureGraph()?.ctx ?? null;
+}
+
 /** Switches the background loop with a soft crossfade; null stops the music. */
 export function setMusic(track: MusicTrack | null): void {
   wantedTrack = track;

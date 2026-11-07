@@ -93,3 +93,53 @@ describe('rule packages (SPEC 5.9)', () => {
     ).toBeNull();
   });
 });
+
+describe('rule packages with sounds (SPEC 5.9, 8.2)', () => {
+  const buh = {
+    id: 'snd1',
+    name: 'buh',
+    dataUrl: 'data:audio/wav;base64,UklGRg==',
+    durationMs: 800,
+    author: 'Jan',
+    createdAt: 1,
+  };
+  const other = { ...buh, id: 'snd2', name: 'pling' };
+
+  it('embeds the sounds that rules, effects and NPC code use', () => {
+    const rule = parseProgram('REGEL "Spuk"\nWENN RUNDENSTART\nDANN SPAWNE geist AUF feld').parsed
+      .program.rules[0]!;
+    // "buh" comes from Geist's code (SPIELE "buh").
+    const pkg = buildPackage(
+      [{ id: 'own.spuk', author: 'Jan', ast: rule }],
+      { effects: [], functions: program.functions, npcTypes: [geist] },
+      [],
+      false,
+      [buh, other],
+    );
+    expect(pkg.sounds.map((s) => s.name)).toEqual(['buh']);
+    const back = readPackage(packageJson(pkg), empty);
+    expect(back?.sounds).toEqual([
+      { id: 'snd1', name: 'buh', dataUrl: buh.dataUrl, durationMs: 800, author: 'Jan' },
+    ]);
+  });
+
+  it('rejects sounds that are no WAV or too long', () => {
+    const text = JSON.stringify({
+      format: PACKAGE_FORMAT,
+      version: 1,
+      rules: [],
+      effects: [],
+      functions: [],
+      npcTypes: [],
+      textures: [],
+      sounds: [
+        { ...buh, dataUrl: 'data:text/html;base64,PHNjcmlwdD4=' },
+        { ...buh, durationMs: 60_000 },
+        { ...buh, name: 'Böse Name!' },
+      ],
+    });
+    const back = readPackage(text, empty);
+    expect(back?.sounds).toEqual([]);
+    expect(back?.rejected).toBe(3);
+  });
+});

@@ -514,7 +514,8 @@ function checkEffect(env: Env, e: Effect, path: string): void {
       }
       break;
     case 'code':
-      pro(env, path);
+      // Playing a sound is a basic action (SPEC 5.7); other code in rules is Profi-Code.
+      if (e.stmt.kind !== 'play') pro(env, path);
       checkStmt(env, e.stmt, path);
       break;
     case 'call': {

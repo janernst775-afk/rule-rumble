@@ -111,7 +111,10 @@ export function validNpcType(npc: NpcType): boolean {
     npc.move >= NPC_LIMITS.move.min &&
     npc.move <= NPC_LIMITS.move.max &&
     ['chase', 'wander', 'stand', 'flee'].includes(npc.behavior) &&
-    [...npc.symbol].length <= 2
+    [...npc.symbol].length <= 2 &&
+    (npc.sound === undefined ||
+      npc.sound === null ||
+      (typeof npc.sound === 'string' && npc.sound.length <= 30))
   );
 }
 

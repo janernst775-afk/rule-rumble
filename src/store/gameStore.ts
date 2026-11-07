@@ -1,7 +1,12 @@
 // UI-side game session: holds the engine state, plays animations and holds back
 // attack results until the wheel animation has finished.
 import { create } from 'zustand';
-import { playSfx } from '../audio/audio';
+import { playRecorded, playSfx } from '../audio/audio';
+import { sfxFor } from '../audio/eventSounds';
+import type { SfxId } from '../audio/sfx';
+import { usePrefs } from './prefsStore';
+import { useProfile } from './profileStore';
+import { findSound, useSounds } from './soundStore';
 import { applyAction } from '../engine/reducer';
 import { createGame, type GameSetup } from '../engine/setup';
 import type { RuleDefinition } from '../lang/ast';
@@ -59,11 +64,49 @@ interface GameStore {
 let toastId = 1;
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-function soundsFor(events: GameEvent[]): void {
+/** At most this many different sounds per engine step, slightly staggered. */
+const MAX_SOUNDS = 4;
+
+/**
+ * Plays a recorded sound by name (SPIELE "name", NPC sounds). Recordings of other players
+ * stay silent when "Eigene Sounds anderer Spieler stumm" is on. Returns false if nothing played.
+ */
+function playNamed(name: string): boolean {
+  const sound = findSound(useSounds.getState().sounds, name);
+  if (!sound) return false;
+  const me = useProfile.getState().name.trim();
+  if (usePrefs.getState().muteOthersSounds && sound.author !== me) return false;
+  playRecorded(`${sound.id}:${sound.createdAt}`, sound.dataUrl);
+  return true;
+}
+
+/** Every game event has a sound (SPEC 8.2); recorded sounds replace the synthetic ones. */
+function soundsFor(state: GameState, events: GameEvent[]): void {
+  const synth: SfxId[] = [];
+  const recorded = new Set<string>();
   for (const e of events) {
-    if (e.type === 'damaged') playSfx('damage');
-    if (e.type === 'died') playSfx('death');
+    if (e.type === 'soundPlayed') {
+      if (!recorded.has(e.sound) && playNamed(e.sound)) recorded.add(e.sound);
+      // SPIELE was asked for explicitly: its default sound goes first.
+      else if (!synth.includes('ruleSound')) synth.unshift('ruleSound');
+      continue;
+    }
+    // NPC sound: when it appears and when its turn starts.
+    if (e.type === 'spawned' || e.type === 'turnStarted') {
+      const npc = state.figures[e.figure];
+      const type = npc?.kind === 'npc' ? state.npcTypes.find((n) => n.id === npc.npcTypeId) : null;
+      if (type?.sound && !recorded.has(type.sound) && playNamed(type.sound)) {
+        recorded.add(type.sound);
+        continue;
+      }
+    }
+    const id = sfxFor(e);
+    if (id && !synth.includes(id)) synth.push(id);
   }
+  synth.slice(0, MAX_SOUNDS).forEach((id, i) => {
+    if (i === 0) playSfx(id);
+    else setTimeout(() => playSfx(id), i * 90);
+  });
 }
 
 function toastsFor(events: GameEvent[]): Toast[] {
@@ -108,7 +151,7 @@ export function onRuleAdded(fn: RuleAddedListener): () => void {
 export const useGame = create<GameStore>()((set, get) => {
   /** Applies a successful engine result to the UI state: sounds, toasts, rule glow. */
   const commit = (state: GameState, events: GameEvent[], extra: Partial<GameStore> = {}) => {
-    soundsFor(events);
+    soundsFor(state, events);
     const toasts = toastsFor(events);
     const glow = { ...get().ruleGlow };
     for (const e of events) {

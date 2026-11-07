@@ -11,6 +11,9 @@ export interface PrefsState {
   leftPanelOpen: boolean;
   rightPanelOpen: boolean;
   logOpen: boolean;
+  /** "Eigene Sounds anderer Spieler stumm" (SPEC 8.2): only own recordings play. */
+  muteOthersSounds: boolean;
+  setMuteOthersSounds: (v: boolean) => void;
   /** Library ids of pinned rules (shown first in the rules panel). */
   pinnedRules: string[];
   togglePinnedRule: (id: string) => void;
@@ -34,6 +37,8 @@ export const usePrefs = create<PrefsState>()(
       rightPanelOpen: true,
       logOpen: false,
       pinnedRules: [],
+      muteOthersSounds: false,
+      setMuteOthersSounds: (muteOthersSounds) => set({ muteOthersSounds }),
       togglePinnedRule: (id) =>
         set((s) => ({
           pinnedRules: s.pinnedRules.includes(id)

@@ -135,6 +135,8 @@ export interface NpcType {
   behavior: NpcBehavior;
   /** NPC "…" ZUG (Profi-Code): replaces the movement template (SPEC 5.8). */
   code?: Stmt[] | null;
+  /** Name of a recorded sound, played when the NPC appears and on its turn (SPEC 5.9). */
+  sound?: string | null;
 }
 
 /** Context values of an event, as rules and code see them (plain JSON). */

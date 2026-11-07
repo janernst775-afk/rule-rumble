@@ -112,6 +112,9 @@ export function effectText(e: Effect, t: Translate): string {
           })
         : t('explain.effect.teleport', { target: targetText(e.target, t) });
     case 'code':
+      if (e.stmt.kind === 'play' && e.stmt.sound.kind === 'str') {
+        return t('explain.effect.play', { sound: e.stmt.sound.value });
+      }
       return t('explain.effect.code');
     case 'moveMod':
     case 'wheelMod':
