@@ -9,6 +9,7 @@ import { RuleEditor } from '../editor/RuleEditor';
 import { LazyWorkshop } from '../workshop/LazyWorkshop';
 import { useProfile } from '../../store/profileStore';
 import { buildPackage, packageJson, readPackage } from '../../store/rulePackage';
+import { soundList, useSounds } from '../../store/soundStore';
 import { useTextures } from '../../store/textureStore';
 import { useWorkshop } from '../../store/workshopStore';
 import { ruleDescription } from '../ruleText';
@@ -40,6 +41,8 @@ export function LibraryScreen() {
   const author = useProfile((s) => s.name);
   const textures = useTextures((s) => s.textures);
   const saveTexture = useTextures((s) => s.save);
+  const soundMap = useSounds((s) => s.sounds);
+  const saveSound = useSounds((s) => s.save);
 
   const rules = allRules(own);
 
@@ -53,6 +56,7 @@ export function LibraryScreen() {
       { effects: ws.effects, functions: ws.functions ?? [], npcTypes: ws.npcTypes },
       Object.values(textures),
       !selected,
+      soundList(soundMap),
     );
     saveFile('rule-rumble-paket.json', packageJson(pkg));
   };
@@ -91,8 +95,14 @@ export function LibraryScreen() {
         inLibrary: true,
       });
     });
+    // Imported sounds replace own ones with the same name, like effects.
+    pkg.sounds.forEach((snd) => {
+      const existing = soundList(soundMap).find((x) => x.name === snd.name);
+      void saveSound({ ...snd, id: existing?.id ?? snd.id, createdAt: Date.now() });
+    });
     setStatus(
       t('library.packageImported', {
+        sounds: pkg.sounds.length,
         rules: added,
         effects: pkg.effects.length,
         functions: pkg.functions.length,

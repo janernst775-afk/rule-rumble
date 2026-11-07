@@ -47,10 +47,12 @@ interface Props {
     npcTypes: readonly NpcType[];
   };
   words: CompletionWords;
+  /** Names of recorded sounds (NPC sound, SPEC 5.9). */
+  sounds: string[];
 }
 
 /** Own NPC type (SPEC 5.9): name, look, life, movement, behavior template or own code (5.8). */
-export function NpcEditor({ initial, takenIds, onSave, onDelete, library, words }: Props) {
+export function NpcEditor({ initial, takenIds, onSave, onDelete, library, words, sounds }: Props) {
   const { t } = useTranslation();
   const lang = useProfile((s) => s.codeLang);
   const [name, setName] = useState(initial?.name ?? t('workshop.npc.defaultName'));
@@ -61,6 +63,7 @@ export function NpcEditor({ initial, takenIds, onSave, onDelete, library, words 
   const [move, setMove] = useState(initial?.move ?? 1);
   const [behavior, setBehavior] = useState<NpcBehavior>(initial?.behavior ?? 'chase');
   const [useCode, setUseCode] = useState(!!initial?.code?.length);
+  const [sound, setSound] = useState<string>(initial?.sound ?? '');
   const [codeText, setCodeText] = useState(() =>
     initial?.code?.length
       ? printNpcCode({ npc: initial.name, body: initial.code }, lang)
@@ -142,6 +145,7 @@ export function NpcEditor({ initial, takenIds, onSave, onDelete, library, words 
         move,
         behavior,
         code: useCode ? code.body : null,
+        sound: sound || null,
       },
       initial?.id ?? null,
     );
@@ -230,6 +234,18 @@ export function NpcEditor({ initial, takenIds, onSave, onDelete, library, words 
             />
           </div>
         )}
+        <label>
+          <span className="label">{t('workshop.npc.sound')}</span>
+          <select className="block-select" value={sound} onChange={(e) => setSound(e.target.value)}>
+            <option value="">{t('workshop.npc.noSound')}</option>
+            {[...new Set([...(sound ? [sound] : []), ...sounds])].map((s) => (
+              <option key={s} value={s}>
+                🔊 {s}
+              </option>
+            ))}
+          </select>
+          <span className="hint">{t('workshop.npc.soundHint')}</span>
+        </label>
         <div>
           <span className="label">{t('workshop.npc.look')}</span>
           <Segmented

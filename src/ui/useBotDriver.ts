@@ -2,8 +2,6 @@ import { useEffect, useRef } from 'react';
 import { chooseTurn } from '../bots/chooseTurn';
 import { chooseVote } from '../bots/ruleChoice';
 import { isSameTurn } from '../bots/simulate';
-import { playSfx } from '../audio/audio';
-import type { ActionType } from '../engine/types';
 import { baseWheelChance } from '../engine/query';
 import { BOT_TEMPO, useGame } from '../store/gameStore';
 import { isHumanTurn } from './gameUi';
@@ -66,7 +64,6 @@ export function useBotDriver(): void {
         if (store().generation !== generation) return;
         store().spinWheel();
       } else {
-        playActionSound(turn.action.type);
         store().dispatch(turn.action);
         // "Tile actions count double": a second tile action (or pass) may follow.
         const after = store().game;
@@ -75,7 +72,6 @@ export function useBotDriver(): void {
           if (store().generation !== generation) return;
           const second = chooseTurn(after);
           if (second) {
-            playActionSound(second.action.type);
             store().dispatch(second.action);
           }
         }
@@ -107,9 +103,4 @@ export function useBotDriver(): void {
       });
     }, THINK_MS * tempo);
   }, [game, wheel, anim, generation]);
-}
-
-function playActionSound(type: ActionType): void {
-  if (type === 'addTile') playSfx('tileAdd');
-  if (type === 'removeTile') playSfx('tileRemove');
 }

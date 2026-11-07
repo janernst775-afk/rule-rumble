@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { NpcType } from '../../engine/types';
 import type { EffectDef, FunctionDef } from '../../lang/ast';
+import { soundList, useSounds } from '../../store/soundStore';
 import { libraryTextures, useTextures } from '../../store/textureStore';
 import type { CompletionWords } from './language';
 
@@ -13,13 +14,13 @@ export function useCompletionWords(
 ): CompletionWords {
   const { t } = useTranslation();
   const textures = useTextures((s) => s.textures);
+  const sounds = useSounds((s) => s.sounds);
   return useMemo(
     () => ({
       effects: effects.map((e) => ({ name: e.name, params: e.params.map((p) => p.name) })),
       functions: functions.map((f) => ({ name: f.name, params: f.params })),
       textures: libraryTextures(textures).map((x) => x.name),
-      // Own sounds follow in v0.7.
-      sounds: [],
+      sounds: soundList(sounds).map((s) => s.name),
       npcTypes: npcTypes.map((n) => n.id),
       labels: {
         keyword: t('workshop.complete.keyword'),
@@ -33,6 +34,6 @@ export function useCompletionWords(
         prop: t('workshop.complete.prop'),
       },
     }),
-    [effects, functions, npcTypes, textures, t],
+    [effects, functions, npcTypes, textures, sounds, t],
   );
 }

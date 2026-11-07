@@ -3,7 +3,7 @@ import { initI18n, LANGUAGES, type Language } from '../../i18n';
 import { usePrefs } from '../../store/prefsStore';
 import { useProfile } from '../../store/profileStore';
 import { VolumeSliders } from './AudioControls';
-import { Segmented } from './Controls';
+import { Segmented, Toggle } from './Controls';
 import { Dialog } from './Dialog';
 
 export function PrefsDialog({ onClose }: { onClose: () => void }) {
@@ -12,6 +12,8 @@ export function PrefsDialog({ onClose }: { onClose: () => void }) {
   const setLanguage = usePrefs((s) => s.setLanguage);
   const codeLang = useProfile((s) => s.codeLang);
   const setCodeLang = useProfile((s) => s.setCodeLang);
+  const muteOthers = usePrefs((s) => s.muteOthersSounds);
+  const setMuteOthers = usePrefs((s) => s.setMuteOthersSounds);
   const change = (l: Language) => {
     setLanguage(l);
     initI18n(l);
@@ -41,6 +43,10 @@ export function PrefsDialog({ onClose }: { onClose: () => void }) {
           />
         </div>
         <VolumeSliders />
+        <div className="prefs-toggle">
+          <span className="label">{t('audio.muteOthers')}</span>
+          <Toggle label={t('audio.muteOthers')} checked={muteOthers} onChange={setMuteOthers} />
+        </div>
       </div>
     </Dialog>
   );

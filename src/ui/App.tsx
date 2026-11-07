@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { setMusic } from '../audio/audio';
 import { useApp } from '../store/appStore';
 import { useGame } from '../store/gameStore';
+import { useSounds } from '../store/soundStore';
 import { useTextures } from '../store/textureStore';
 import { useAudioPrefsSync } from './useAudioPrefsSync';
 import { GameScreen } from './screens/GameScreen';
@@ -17,10 +18,12 @@ export function App() {
   const screen = useApp((s) => s.screen);
   const hasGame = useGame((s) => s.game !== null);
   const loadTextures = useTextures((s) => s.load);
+  const loadSounds = useSounds((s) => s.load);
 
   useEffect(() => {
     void loadTextures();
-  }, [loadTextures]);
+    void loadSounds();
+  }, [loadTextures, loadSounds]);
 
   // Every rule that enters a game is kept in the local library (SPEC 5.5).
   useEffect(() => onRuleAdded((def) => useLibrary.getState().record(def)), []);

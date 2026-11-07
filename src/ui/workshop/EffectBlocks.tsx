@@ -950,7 +950,7 @@ function StmtBlock({
               expr={stmt.sound}
               want="sound"
               scope={scope}
-              label={t('workshop.sound')}
+              label={t('workshop.sound.title')}
               onChange={(sound) => onChange({ ...stmt, sound })}
             />
           )}

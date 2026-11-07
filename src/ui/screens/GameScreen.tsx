@@ -305,7 +305,6 @@ export function GameScreen() {
   const onTileClick = (pos: Pos) => {
     if (tileMode === 'remove' && me) {
       if (removeReasons.get(tileKey(pos)) === null) {
-        playSfx('tileRemove');
         dispatch({ type: 'removeTile', actor: me.id, pos });
       }
       return;
@@ -330,7 +329,6 @@ export function GameScreen() {
     if (game.settings.board.customTextures) {
       setDialogState({ key: tileKeyOfTurn, pos });
     } else {
-      playSfx('tileAdd');
       dispatch({ type: 'addTile', actor: me.id, pos, textureId: null });
     }
   };
@@ -339,7 +337,6 @@ export function GameScreen() {
     if (!me) return;
     if (result.texture && result.isNew) void saveTexture(result.texture);
     setDialogState(null);
-    playSfx('tileAdd');
     dispatch({ type: 'addTile', actor: me.id, pos, textureId: result.texture?.id ?? null });
   };
 

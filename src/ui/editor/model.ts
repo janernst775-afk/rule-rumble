@@ -261,8 +261,10 @@ export function defaultEffect(kind: EffectKind, trigger: Trigger): Effect {
         value: { kind: 'num', value: 1 },
       };
     case 'message':
+      return { kind, text: 'Achtung!' };
     case 'code':
-      return { kind: 'message', text: 'Achtung!' };
+      // The rule palette offers code only as "Sound abspielen" (SPIELE "name").
+      return { kind, stmt: { kind: 'play', sound: { kind: 'str', value: 'pling' } } };
     case 'call':
       return { kind, effect: '', args: [] };
   }

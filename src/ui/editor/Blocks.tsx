@@ -16,6 +16,7 @@ import type {
 import { TRIGGER_CONTEXT } from '../../lang/context';
 import { printCondition, printExprText, printStmtText } from '../../lang/printer';
 import { CloseIcon, ChevronIcon } from '../components/Icons';
+import { soundList, useSounds } from '../../store/soundStore';
 import { TRIGGER_KINDS } from '../ruleText';
 import { targetLabel, tileLabel, valueLabel } from './labels';
 import {
@@ -431,6 +432,20 @@ function EffectInputs({
 
   switch (effect.kind) {
     case 'code':
+      if (effect.stmt.kind === 'play' && effect.stmt.sound.kind === 'str') {
+        const current = effect.stmt.sound.value;
+        return (
+          <SoundSelect
+            value={current}
+            onChange={(value) =>
+              onChange({
+                kind: 'code',
+                stmt: { kind: 'play', sound: { kind: 'str', value } },
+              })
+            }
+          />
+        );
+      }
       // Profi-Code in a rule: shown read-only, edited in the text view (SPEC 5.8).
       return (
         <pre className="code-snippet" title={t('editor.codeEffectHint')}>
@@ -720,14 +735,37 @@ function CallArg({
   }
 }
 
+/** SPIELE "name": own recordings or any name (plays the default sound without a recording). */
+function SoundSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useTranslation();
+  const sounds = useSounds((s) => s.sounds);
+  const names = soundList(sounds).map((s) => s.name);
+  const options = names.includes(value) ? names : [value, ...names];
+  return (
+    <Select<string>
+      label={t('editor.soundLabel')}
+      value={value}
+      options={options}
+      keyOf={(v) => v}
+      labelOf={(v) => (names.includes(v) ? `🔊 ${v}` : t('editor.soundMissing', { name: v }))}
+      onChange={onChange}
+    />
+  );
+}
+
 type EffectFieldsProps = Parameters<typeof EffectInputs>[0];
+
+function effectLabel(effect: Effect): string {
+  if (effect.kind === 'code' && effect.stmt.kind === 'play') return 'play';
+  return effect.kind;
+}
 
 /** An effect block: the action name (as in the reference "Spawne …") and its inputs. */
 export function EffectFields(props: EffectFieldsProps) {
   const { t } = useTranslation();
   return (
     <>
-      <span className="block-action">{t(`editor.effect.${props.effect.kind}`)}</span>
+      <span className="block-action">{t(`editor.effect.${effectLabel(props.effect)}`)}</span>
       <EffectInputs {...props} />
     </>
   );

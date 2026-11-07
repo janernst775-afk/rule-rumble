@@ -11,6 +11,7 @@ import { printRule } from '../../lang/printer';
 import { ruleStrength, type StrengthLevel } from '../../lang/strength';
 import { validateRule } from '../../lang/validator';
 import { useProfile } from '../../store/profileStore';
+import { soundList, useSounds } from '../../store/soundStore';
 import { EFFECT_KINDS, TRIGGER_KINDS } from '../ruleText';
 import { BlockRow, ConditionFields, EffectFields, TriggerFields } from './Blocks';
 import {
@@ -171,6 +172,11 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
                 : null
               : defaultEffect(item.kind, a.trigger);
           if (!next) return a;
+          // "Sound abspielen" starts with the first own recording, if there is one.
+          const firstSound = soundList(useSounds.getState().sounds)[0]?.name;
+          if (next.kind === 'code' && next.stmt.kind === 'play' && firstSound) {
+            next.stmt.sound = { kind: 'str', value: firstSound };
+          }
           return { ...a, [target]: [...a[target], next] };
         }
         case 'meta':
@@ -289,6 +295,7 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
             {EFFECT_KINDS.map((k) =>
               chip({ type: 'effect', kind: k }, t(`editor.effect.${k}`), 'then'),
             )}
+            {chip({ type: 'effect', kind: 'code' }, t('editor.effect.play'), 'then')}
           </div>
           <h3 className="pal-meta">{t('editor.zone.meta')}</h3>
           <div className="palette-group">

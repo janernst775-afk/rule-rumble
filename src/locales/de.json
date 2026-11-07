@@ -26,7 +26,8 @@
     "mute": "Ton aus",
     "unmute": "Ton an",
     "music": "Musik",
-    "effects": "Effekte"
+    "effects": "Effekte",
+    "muteOthers": "Eigene Sounds anderer Spieler stumm"
   },
   "prefs": {
     "title": "Einstellungen",
@@ -511,8 +512,8 @@
     "imported": "Importiert: {{added}} · abgelehnt: {{rejected}}",
     "packageOne": "Als Paket speichern",
     "packageAll": "Alles als Paket",
-    "packageHint": "Ein Regel-Paket enthält auch eigene Effekte, Funktionen, NPC-Typen und Texturen – ein ganzer Spielmodus in einer Datei.",
-    "packageImported": "Paket importiert: {{rules}} Regeln, {{effects}} Effekte, {{functions}} Funktionen, {{npcs}} NPC-Typen, {{textures}} Texturen · abgelehnt: {{rejected}}",
+    "packageHint": "Ein Regel-Paket enthält auch eigene Effekte, Funktionen, NPC-Typen, Texturen und Sounds – ein ganzer Spielmodus in einer Datei.",
+    "packageImported": "Paket importiert: {{rules}} Regeln, {{effects}} Effekte, {{functions}} Funktionen, {{npcs}} NPC-Typen, {{textures}} Texturen, {{sounds}} Sounds · abgelehnt: {{rejected}}",
     "importAuthor": "Import"
   },
   "validation": {
@@ -643,7 +644,8 @@
       "setVar": "Setze Variable",
       "message": "Zeige Nachricht",
       "call": "Eigener Effekt",
-      "code": "Code"
+      "code": "Code",
+      "play": "Sound abspielen"
     },
     "duration": "Dauer",
     "limit": "Limit",
@@ -754,7 +756,9 @@
     },
     "noOwnEffects": "Noch keine – baue welche in der Effekt-Werkstatt.",
     "openWorkshop": "+ Effekt-Werkstatt",
-    "codeEffectHint": "Profi-Code – in der Text-Ansicht bearbeiten"
+    "codeEffectHint": "Profi-Code – in der Text-Ansicht bearbeiten",
+    "soundLabel": "Sound",
+    "soundMissing": "„{{name}}“ (nicht aufgenommen)"
   },
   "explain": {
     "figure": {
@@ -855,7 +859,8 @@
       "message": "Nachricht „{{text}}“",
       "call": "Effekt „{{name}}“ ({{args}})",
       "teleportNear": "{{target}} springt neben {{tile}}",
-      "code": "führt Profi-Code aus"
+      "code": "führt Profi-Code aus",
+      "play": "Sound „{{sound}}“ erklingt"
     },
     "world": "der Welt",
     "otherwise": "Sonst: {{effects}}.",
@@ -1014,7 +1019,30 @@
     "from": "AUS",
     "set": "Menge",
     "value": "Wert",
-    "sound": "Sound",
+    "sound": {
+      "title": "Sound",
+      "record": "Aufnehmen",
+      "stop": "Stopp",
+      "recording": "Aufnahme läuft … {{seconds}} s",
+      "hint": "Bis zu 3 Sekunden. Danach Anfang und Ende zuschneiden.",
+      "noMic": "Kein Mikrofon verfügbar oder Zugriff verweigert.",
+      "noRecorder": "Dieser Browser kann nicht aufnehmen.",
+      "decodeFailed": "Die Aufnahme ließ sich nicht lesen.",
+      "start": "Anfang",
+      "end": "Ende",
+      "volume": "Lautstärke",
+      "name": "Name",
+      "play": "Abspielen",
+      "save": "Sound speichern",
+      "saved": "Gespeichert ✓",
+      "delete": "Löschen",
+      "nameTaken": "Diesen Namen gibt es schon.",
+      "nameMissing": "Der Sound braucht einen Namen.",
+      "length": "{{length}} s von max. 3 s",
+      "usage": "In Regeln und Effekten: SPIELE \"{{name}}\"",
+      "waveform": "Wellenform",
+      "defaultName": "mein_sound"
+    },
     "seconds": "Sekunden",
     "else": "SONST",
     "npc": {
@@ -1042,7 +1070,10 @@
       "save": "NPC-Typ speichern",
       "behaviorCode": "Eigener Code",
       "codeLabel": "Verhalten als Code",
-      "codeTemplate": "NPC \"{{name}}\" ZUG\n  # dein Code\nENDE"
+      "codeTemplate": "NPC \"{{name}}\" ZUG\n  # dein Code\nENDE",
+      "sound": "Sound",
+      "noSound": "kein Sound",
+      "soundHint": "Erklingt, wenn der NPC erscheint und wenn er am Zug ist."
     },
     "modeBlocks": "Bausteine",
     "modeCode": "Profi-Code",
@@ -1104,6 +1135,9 @@
       "sound": "Sound",
       "npc": "NPC-Typ",
       "prop": "Eigenschaft"
-    }
+    },
+    "sounds": "Sounds",
+    "newSound": "+ Sound",
+    "noSounds": "Noch keine."
   }
 }

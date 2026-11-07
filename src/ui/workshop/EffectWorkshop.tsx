@@ -19,6 +19,7 @@ import { printEffectDef } from '../../lang/printer';
 import { npcTypeFor, validateEffect } from '../../lang/validator';
 import { useLibrary } from '../../store/libraryStore';
 import { useProfile } from '../../store/profileStore';
+import { soundList, useSounds } from '../../store/soundStore';
 import { allNpcTypes, useWorkshop, withBundleFromWorkshop } from '../../store/workshopStore';
 import { CodePanel } from '../code/CodePanel';
 import { DebugPanel } from '../code/DebugPanel';
@@ -32,6 +33,7 @@ import { StmtList } from './EffectBlocks';
 import { FunctionEditor } from './FunctionEditor';
 import { NpcEditor } from './NpcEditor';
 import { ProgramEditor } from './ProgramEditor';
+import { SoundEditor } from './SoundEditor';
 
 const PARAM_TYPES: ParamType[] = [
   'number',
@@ -52,6 +54,7 @@ type Selection =
   | { kind: 'effect'; name: string | null }
   | { kind: 'npc'; id: string | null }
   | { kind: 'function'; name: string | null }
+  | { kind: 'sound'; id: string | null }
   | { kind: 'program' };
 
 function emptyEffect(author: string, name: string): EffectDef {
@@ -105,6 +108,10 @@ export function EffectWorkshop({ onClose }: Props) {
   const saveFunction = useWorkshop((s) => s.saveFunction);
   const removeFunction = useWorkshop((s) => s.removeFunction);
   const saveRule = useLibrary((s) => s.save);
+  const soundMap = useSounds((s) => s.sounds);
+  const saveSound = useSounds((s) => s.save);
+  const removeSound = useSounds((s) => s.remove);
+  const sounds = useMemo(() => soundList(soundMap), [soundMap]);
   const npcTypes = useMemo(() => allNpcTypes(ownNpcs), [ownNpcs]);
 
   const [selection, setSelection] = useState<Selection>(() =>
@@ -282,7 +289,7 @@ export function EffectWorkshop({ onClose }: Props) {
         <h1 id="workshop-title" className="title-logo editor-title">
           {t('workshop.title')}
         </h1>
-        {selection.kind !== 'npc' && (
+        {selection.kind !== 'npc' && selection.kind !== 'sound' && (
           <div className="workshop-mode-switch">
             <Segmented<'blocks' | 'code'>
               label={t('workshop.mode')}
@@ -339,6 +346,22 @@ export function EffectWorkshop({ onClose }: Props) {
               </li>
             ))}
           </ul>
+          <h3>{t('workshop.sounds')}</h3>
+          <ul className="mine-list">
+            {sounds.length === 0 && <li className="hint">{t('workshop.noSounds')}</li>}
+            {sounds.map((s) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  className="mine-item"
+                  aria-pressed={selection.kind === 'sound' && selection.id === s.id}
+                  onClick={() => setSelection({ kind: 'sound', id: s.id })}
+                >
+                  🔊 {s.name}
+                </button>
+              </li>
+            ))}
+          </ul>
           <h3>{t('workshop.npcTypes')}</h3>
           <ul className="mine-list">
             {npcTypes.map((n) => (
@@ -386,6 +409,13 @@ export function EffectWorkshop({ onClose }: Props) {
             <button
               type="button"
               className="btn btn-soft btn-small"
+              onClick={() => setSelection({ kind: 'sound', id: null })}
+            >
+              {t('workshop.newSound')}
+            </button>
+            <button
+              type="button"
+              className="btn btn-soft btn-small"
               aria-pressed={selection.kind === 'program'}
               onClick={() => setSelection({ kind: 'program' })}
             >
@@ -401,6 +431,7 @@ export function EffectWorkshop({ onClose }: Props) {
               initial={ownNpcs.find((n) => n.id === selection.id) ?? null}
               takenIds={npcTypes.map((n) => n.id)}
               library={{ effects, functions, npcTypes }}
+              sounds={sounds.map((s) => s.name)}
               words={words}
               onSave={(npc: NpcType, previousId) => {
                 if (previousId && previousId !== npc.id) removeNpc(previousId);
@@ -411,6 +442,29 @@ export function EffectWorkshop({ onClose }: Props) {
                 selection.id
                   ? () => {
                       removeNpc(selection.id ?? '');
+                      setSelection({ kind: 'effect', name: null });
+                    }
+                  : undefined
+              }
+            />
+          </section>
+        )}
+
+        {selection.kind === 'sound' && (
+          <section className="editor-canvas workshop-canvas npc-canvas">
+            <SoundEditor
+              key={selection.id ?? 'new'}
+              initial={sounds.find((s) => s.id === selection.id) ?? null}
+              takenNames={sounds.filter((s) => s.id !== selection.id).map((s) => s.name)}
+              author={author}
+              onSave={(sound) => {
+                void saveSound(sound);
+                setSelection({ kind: 'sound', id: sound.id });
+              }}
+              onDelete={
+                selection.id
+                  ? () => {
+                      void removeSound(selection.id ?? '');
                       setSelection({ kind: 'effect', name: null });
                     }
                   : undefined

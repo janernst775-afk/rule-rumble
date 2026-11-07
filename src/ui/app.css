@@ -3070,3 +3070,89 @@
 .npc-code .debug-panel {
   border: 3px solid var(--lilac-strong);
 }
+
+/* ---------- Own sounds (v0.7, SPEC 8.2) ---------- */
+
+.sound-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 640px;
+  padding: 18px;
+  border-radius: 20px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.sound-editor .hint {
+  color: var(--ink-soft);
+}
+
+.sound-record {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.mic-btn {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: var(--red);
+  color: #fff;
+  box-shadow: 0 4px 0 var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mic-btn.recording {
+  animation: mic-pulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes mic-pulse {
+  to {
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic-btn.recording {
+    animation: none;
+  }
+}
+
+.sound-wave-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.sound-wave {
+  width: 100%;
+  height: 64px;
+  border-radius: 12px;
+  background: var(--lilac);
+  fill: var(--violet);
+}
+
+.sound-wave .wave-cut {
+  fill: rgba(43, 26, 74, 0.18);
+}
+
+.sound-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sound-controls input[type='range'] {
+  width: 100%;
+}
+
+.prefs-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
