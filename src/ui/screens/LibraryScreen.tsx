@@ -6,11 +6,24 @@ import { allRules, exportJson, useLibrary } from '../../store/libraryStore';
 import { MuteButton } from '../components/AudioControls';
 import { RuleList } from '../components/RuleList';
 import { RuleEditor } from '../editor/RuleEditor';
-import { EffectWorkshop } from '../workshop/EffectWorkshop';
+import { LazyWorkshop } from '../workshop/LazyWorkshop';
 import { useProfile } from '../../store/profileStore';
+import { buildPackage, packageJson, readPackage } from '../../store/rulePackage';
+import { useTextures } from '../../store/textureStore';
+import { useWorkshop } from '../../store/workshopStore';
 import { ruleDescription } from '../ruleText';
 
-/** Screen 8 "Bibliothek" (rules only in v0.3; effects, textures, sounds follow later). */
+function saveFile(name: string, text: string): void {
+  const blob = new Blob([text], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Screen 8 "Bibliothek": rules, export/import and rule packages (SPEC 5.5, 5.9). */
 export function LibraryScreen() {
   const { t } = useTranslation();
   const setScreen = useApp((s) => s.setScreen);
@@ -23,18 +36,73 @@ export function LibraryScreen() {
   const [editing, setEditing] = useState<{ initial: RuleDefinition | null } | null>(null);
   const [workshop, setWorkshop] = useState(false);
   const save = useLibrary((s) => s.save);
+  const record = useLibrary((s) => s.record);
   const author = useProfile((s) => s.name);
+  const textures = useTextures((s) => s.textures);
+  const saveTexture = useTextures((s) => s.save);
 
   const rules = allRules(own);
 
-  const download = () => {
-    const blob = new Blob([exportJson(rules)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'rule-rumble-regeln.json';
-    a.click();
-    URL.revokeObjectURL(url);
+  const download = () => saveFile('rule-rumble-regeln.json', exportJson(rules));
+
+  /** Package: the selected rule, or all own rules plus the whole workshop. */
+  const downloadPackage = () => {
+    const ws = useWorkshop.getState();
+    const pkg = buildPackage(
+      selected ? [selected] : own,
+      { effects: ws.effects, functions: ws.functions ?? [], npcTypes: ws.npcTypes },
+      Object.values(textures),
+      !selected,
+    );
+    saveFile('rule-rumble-paket.json', packageJson(pkg));
+  };
+
+  /** Imports a package; returns false if the text is no package. */
+  const importPackage = (text: string): boolean => {
+    const ws = useWorkshop.getState();
+    const pkg = readPackage(text, {
+      effects: ws.effects,
+      functions: ws.functions ?? [],
+      npcTypes: ws.npcTypes,
+    });
+    if (!pkg) return false;
+    // Imported definitions replace own ones with the same name (SPEC 5.9: share game modes).
+    for (const f of pkg.functions) ws.saveFunction(f);
+    for (const e of pkg.effects) ws.saveEffect(e);
+    for (const n of pkg.npcTypes) ws.saveNpcType(n);
+    const before = useLibrary.getState().rules.length;
+    pkg.rules.forEach((r, i) => {
+      const taken =
+        r.id.startsWith('start.') || useLibrary.getState().rules.some((x) => x.id === r.id);
+      record(taken ? { ...r, id: `import.${Date.now().toString(36)}.${i}` } : r);
+    });
+    const added = useLibrary.getState().rules.length - before;
+    const names = new Set(Object.values(textures).map((x) => x.name.toLowerCase()));
+    let newTextures = 0;
+    pkg.textures.forEach((tex, i) => {
+      if (names.has(tex.name.toLowerCase())) return;
+      newTextures++;
+      void saveTexture({
+        id: textures[tex.id] ? `import.${Date.now().toString(36)}.${i}` : tex.id,
+        name: tex.name,
+        dataUrl: tex.dataUrl,
+        author: t('library.importAuthor'),
+        createdAt: Date.now(),
+        inLibrary: true,
+      });
+    });
+    setStatus(
+      t('library.packageImported', {
+        rules: added,
+        effects: pkg.effects.length,
+        functions: pkg.functions.length,
+        npcs: pkg.npcTypes.length,
+        textures: newTextures,
+        rejected: pkg.rejected,
+      }),
+    );
+    setImportText('');
+    return true;
   };
 
   const copy = async () => {
@@ -47,6 +115,7 @@ export function LibraryScreen() {
   };
 
   const runImport = (text: string) => {
+    if (importPackage(text)) return;
     const result = importJson(text);
     setStatus(t('library.imported', { added: result.added, rejected: result.rejected }));
     if (result.added > 0) setImportText('');
@@ -117,7 +186,11 @@ export function LibraryScreen() {
             <button type="button" className="btn btn-small" onClick={download}>
               {t('library.download')}
             </button>
+            <button type="button" className="btn btn-small" onClick={downloadPackage}>
+              {selected ? t('library.packageOne') : t('library.packageAll')}
+            </button>
           </div>
+          <p className="hint">{t('library.packageHint')}</p>
           <h3 className="subhead">{t('library.import')}</h3>
           <label className="visually-hidden" htmlFor="import-text">
             {t('library.importLabel')}
@@ -147,7 +220,7 @@ export function LibraryScreen() {
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   e.target.value = '';
-                  if (file && file.size < 1_000_000) runImport(await file.text());
+                  if (file && file.size < 8_000_000) runImport(await file.text());
                 }}
               />
             </label>
@@ -162,7 +235,7 @@ export function LibraryScreen() {
           </button>
         </aside>
       </div>
-      {workshop && <EffectWorkshop onClose={() => setWorkshop(false)} />}
+      {workshop && <LazyWorkshop onClose={() => setWorkshop(false)} />}
       {editing && (
         <RuleEditor
           initial={editing.initial}
