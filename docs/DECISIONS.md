@@ -69,3 +69,19 @@ Abweichungen von der Spec und technische Entscheidungen, neueste unten.
 - **Regel-Bibliothek** in `localStorage` (`rr.library`): jede gespielte Regel wird gespeichert; Import/Export als JSON (`rule-rumble/rules`, Version 1); importierte Regeln werden gegen die Standard-Einstellungen geprüft, ungültige abgelehnt. Erreichbar über „Bibliothek“ auf dem Startbildschirm.
 - **Anheften** merkt sich die Bibliotheks-ID der Regel (bleibt über Spiele hinweg erhalten).
 
+## 2026-11-07 – Umsetzung v0.4
+
+- **Textsprache der zusätzlichen Kontextwerte:** `von_feld` (en `from_tile`) und `<figur>.feld` (z. B. `angreifer.feld`, en `attacker.tile`) sind Teil der Sprache; `auslöser.feld.typ` fragt den Typ des Felds einer Figur ab. Feldtypen stehen ohne Anführungszeichen (`feld.typ = lava`), Texturnamen mit (`feld.textur = "Sumpf"`).
+- **Englische Schlüsselwörter** (Auszug): RULE, IF, AND, OR, NOT, THEN, ELSE, DURATION, LIMIT … PER ROUND/TURN/GAME, EVERY n ROUNDS; Ereignisse ROUND_START, ENTERS tile / new_tile, HIT …; Aktionen SPAWN, DAMAGE, HEAL, MOVE, WHEEL, PUSH … AWAY_FROM, MAKE … INTO, ADD NEXT_TO, SET, SHOW. Feldtypen en: ice, spring, trap. Der AST speichert immer die deutschen Feldtyp-IDs.
+- **Startbibliothek als Textdatei** `lang/library/start.regeln.txt`, beim Laden geparst (Vite `?raw`). Regel-IDs entstehen aus dem Namen (`start.<slug>`); dadurch heißen vier i18n-Schlüssel jetzt `heilquelle-entspringt`, `falle-schnappt-zu`, `sumpfig`, `die-flut`. Die TS-Fassung aus v0.3 bleibt als Testvorlage; ein Test prüft, dass beide dieselben ASTs ergeben.
+- **Parser** erholt sich zeilenweise: pro Zeile höchstens ein Fehler, Folgefehler („WENN fehlt“) werden unterdrückt. Vorschläge per Levenshtein-Abstand (höchstens 2 bzw. ein Drittel der Wortlänge).
+- **Validator-Fehler im Editor** werden über eine Zeilentabelle des Parsers einer Zeile bzw. einem Baustein zugeordnet; „Wert gibt es bei diesem Auslöser nicht“ schlägt den ersten verfügbaren Wert vor (oder `alle`).
+- **Klartext:** `explain.ts` ist rein und bekommt eine Übersetzungsfunktion; Startregeln behalten ihre handgeschriebenen Beschreibungen, alle anderen Regeln werden erklärt.
+- **Stärke-Anzeige:** Heuristik aus Auslöser-Häufigkeit, Effekt-Gewichten, Zielmenge, Zufall, Limit und Dauer. Bots fügen keine weitere „heftige“ Regel hinzu, sobald eine im Spiel ist.
+- **Testlauf:** 10 Runden mit der schnellen Bot-Strategie auf einer Kopie (alle Figuren werden von Bots gespielt; außerhalb eines Spiels in einem Demo-Spiel). Ereignisse aus Regel-Effekten tragen dafür die Regel als `cause`.
+- **Baustein-Ansicht:** einfache Bedingungen (Zufall, Vergleich Wert gegen Zahl/Text/Feldtyp) und alle Effekte mit Zahlwerten sind als Bausteine editierbar; verschachtelte Bedingungen (ODER, NICHT, Klammern) und berechnete Werte erscheinen als grauer Code-Baustein, der in die Text-Ansicht wechselt. Effekte lassen sich per Pfeil umsortieren.
+- **Drag & Drop** nutzt HTML5-Drag-&-Drop; jeder Baustein lässt sich alternativ per Klick hinzufügen (Tastatur).
+- **Text-Ansicht** ist in v0.4 ein Textfeld mit Zeilennummern und Fehlerliste; Syntax-Farben, Autovervollständigung und Inline-Fehler kommen mit CodeMirror in v0.6. Die farbige Vorschau „Als Text“ zeigt den normalisierten Text.
+- **Sprache der Regel-Texte** ist eine Profil-Einstellung (Einstellungen → „Sprache der Regel-Texte“).
+- **Bearbeiten von Startregeln** erzeugt eine Kopie mit neuer ID und dem eigenen Namen als Autor; eigene Regeln werden überschrieben.
+

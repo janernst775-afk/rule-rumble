@@ -108,14 +108,14 @@ Reihenfolge ist verbindlich. Jeder Meilenstein endet mit Bericht und Stopp (sieh
 
 **Spec lesen:** 5.3, 5.4
 
-- [ ] `lang/keywords.ts`: deutsche Schlüsselwörter + englische Aliase, `UE/OE/AE`-Schreibweise
-- [ ] Lexer + Recursive-Descent-Parser für die Regel-Sprache laut Grammatik
-- [ ] Printer (AST → Text, in der Sprache des Spielers) und Klartext-Erklärung (AST → Satz, über i18n)
-- [ ] Fehlermeldungen mit Zeile, Spalte und Vorschlag („Meintest du …?“)
-- [ ] Baustein-Editor laut Referenz: Palette, Drag & Drop, Werte per Dropdown/Zahl, live umschaltbar zu Text
-- [ ] Stärke-Anzeige (harmlos / spannend / heftig) und Testlauf (10 Runden auf einer Kopie des Zustands)
-- [ ] Regeln speichern, exportieren, importieren
-- [ ] Tests: Parser-Round-Trip für alle Startregeln, Fehlermeldungen, Aliase
+- [x] `lang/keywords.ts`: deutsche Schlüsselwörter + englische Aliase, `UE/OE/AE`-Schreibweise
+- [x] Lexer + Recursive-Descent-Parser für die Regel-Sprache laut Grammatik
+- [x] Printer (AST → Text, in der Sprache des Spielers) und Klartext-Erklärung (AST → Satz, über i18n)
+- [x] Fehlermeldungen mit Zeile, Spalte und Vorschlag („Meintest du …?“)
+- [x] Baustein-Editor laut Referenz: Palette, Drag & Drop, Werte per Dropdown/Zahl, live umschaltbar zu Text
+- [x] Stärke-Anzeige (harmlos / spannend / heftig) und Testlauf (10 Runden auf einer Kopie des Zustands)
+- [x] Regeln speichern, exportieren, importieren
+- [x] Tests: Parser-Round-Trip für alle Startregeln, Fehlermeldungen, Aliase
 
 **Abnahme:** Jede Startregel lässt sich als Text und als Bausteine bearbeiten, und beide Ansichten bleiben synchron.
 
