@@ -78,7 +78,9 @@ function candidatesFor(state: GameState, me: Figure, rng: RngHolder): Candidate[
     const meAfter = after.figures[me.id];
     if (!meAfter) continue;
     const p = baseWheelChance(after, meAfter) / 100;
-    for (const target of attackTargets(after, me.id)) {
+    // After a first tile action ("Baumeister") only a second tile action or passing is left.
+    const targets = after.turn.tileActionsUsed > 0 ? [] : attackTargets(after, me.id);
+    for (const target of targets) {
       if (!chaosAllowed.has(target.id)) {
         chaosAllowed.set(target.id, attackAllowedByBotPolicy(after, me, target, rng));
       }
