@@ -260,7 +260,8 @@ export function defaultEffect(kind: EffectKind, trigger: Trigger): Effect {
         value: { kind: 'num', value: 1 },
       };
     case 'message':
-      return { kind, text: 'Achtung!' };
+    case 'code':
+      return { kind: 'message', text: 'Achtung!' };
     case 'call':
       return { kind, effect: '', args: [] };
   }

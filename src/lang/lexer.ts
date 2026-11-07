@@ -21,7 +21,23 @@ export interface LexError {
 const WORD_START = /[A-Za-zÄÖÜäöüß_]/;
 const WORD_PART = /[A-Za-zÄÖÜäöüß_0-9]/;
 const TWO_CHAR = new Set(['!=', '<=', '>=']);
-const ONE_CHAR = new Set(['=', '<', '>', '+', '-', '%', '(', ')', '.', ',', ':']);
+const ONE_CHAR = new Set([
+  '=',
+  '<',
+  '>',
+  '+',
+  '-',
+  '*',
+  '/',
+  '%',
+  '(',
+  ')',
+  '[',
+  ']',
+  '.',
+  ',',
+  ':',
+]);
 
 export function tokenize(source: string): { tokens: Token[]; errors: LexError[] } {
   const tokens: Token[] = [];

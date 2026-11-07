@@ -24,6 +24,7 @@ export const QUERY_ARGS: Record<QueryName, Want[]> = {
   distance: ['tile', 'tile'],
   randomNumber: ['number', 'number'],
   count: ['anySet'],
+  edgeTiles: [],
 };
 
 const QUERY_RESULT: Record<QueryName, ValueType> = {
@@ -38,6 +39,7 @@ const QUERY_RESULT: Record<QueryName, ValueType> = {
   distance: 'number',
   randomNumber: 'number',
   count: 'number',
+  edgeTiles: 'tileSet',
 };
 
 function defaultArg(w: Want): Expr {

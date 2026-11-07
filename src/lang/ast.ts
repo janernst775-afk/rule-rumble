@@ -19,10 +19,13 @@ export type TriggerKind =
   | 'damage'
   | 'dies'
   | 'tileAdded'
-  | 'tileRemoved';
+  | 'tileRemoved'
+  /** WENN EREIGNIS "name" (Profi-Code, SPEC 5.8) */
+  | 'custom';
 
 export type Trigger =
-  | { kind: Exclude<TriggerKind, 'everyNRounds' | 'enters'> }
+  | { kind: Exclude<TriggerKind, 'everyNRounds' | 'enters' | 'custom'> }
+  | { kind: 'custom'; event: string }
   | { kind: 'everyNRounds'; n: number }
   /** BETRITT feld / BETRITT neues_feld */
   | { kind: 'enters'; newOnly: boolean };
@@ -69,7 +72,20 @@ export type Expr =
   /** A set of tiles as in rule tile targets (nachbarfelder …). */
   | { kind: 'tiles'; target: TileTarget }
   /** KEINE (no figure / no tile) */
-  | { kind: 'none' };
+  | { kind: 'none' }
+  // ---- Profi-Code (SPEC 5.8) ----
+  /** + - * / ; `+` also joins texts */
+  | { kind: 'arith'; op: ArithOp; left: Expr; right: Expr }
+  /** [1, 2, 3] */
+  | { kind: 'list'; items: Expr[] }
+  /** Call of an own function: schwächste(alle_figuren) */
+  | { kind: 'fcall'; name: string; args: Expr[] }
+  /** selbst: the NPC whose turn it is (NPC "…" ZUG) */
+  | { kind: 'self' }
+  /** Property of any value: selbst.feld, schwächste(m).leben, liste.länge */
+  | { kind: 'prop'; of: Expr; prop: string };
+
+export type ArithOp = '+' | '-' | '*' | '/';
 
 /** Queries of the effect workshop (SPEC 5.7 "Abfragen"). */
 export type QueryName =
@@ -83,7 +99,9 @@ export type QueryName =
   | 'nearestFigure'
   | 'distance'
   | 'randomNumber'
-  | 'count';
+  | 'count'
+  /** felder_am_rand: tiles with fewer than four neighbors (SPEC 5.8 "Flut") */
+  | 'edgeTiles';
 
 export type CmpOp = '=' | '!=' | '<' | '>' | '<=' | '>=';
 
@@ -118,7 +136,8 @@ export type Effect =
   | { kind: 'damage'; target: Target; amount: number }
   | { kind: 'heal'; target: Target; amount: number }
   | { kind: 'moveMod'; target: Target; delta: number; rounds: number }
-  | { kind: 'teleport'; target: Target }
+  /** TELEPORT ziel ZUFÄLLIG, or TELEPORT ziel NEBEN feld (a free tile next to it) */
+  | { kind: 'teleport'; target: Target; near?: TileTarget }
   | { kind: 'push'; target: Target; from: TileTarget; distance: number }
   | { kind: 'skip'; target: Target; turns: number }
   | { kind: 'shield'; target: Target; amount: number }
@@ -129,7 +148,9 @@ export type Effect =
   | { kind: 'setVar'; scope: VarScope; name: string; op: '=' | '+' | '-'; value: Expr }
   | { kind: 'message'; text: string }
   /** Calls an own effect from the effect workshop by name: Erdbeben(1) */
-  | { kind: 'call'; effect: string; args: Expr[] };
+  | { kind: 'call'; effect: string; args: Expr[] }
+  /** Profi-Code in a rule: DANN WENN … ENDE, DANN SENDE "x", … (one statement) */
+  | { kind: 'code'; stmt: Stmt };
 
 export type EffectKind = Effect['kind'];
 
@@ -165,17 +186,19 @@ export type ValueType =
   | 'tileSet'
   | 'npcType'
   | 'texture'
-  | 'sound';
+  | 'sound'
+  /** Profi-Code lists [1, 2, 3] */
+  | 'list';
 
-export type ParamType = Exclude<ValueType, 'bool'>;
+export type ParamType = Exclude<ValueType, 'bool' | 'list'>;
 
 export interface EffectParam {
   name: string;
   type: ParamType;
 }
 
-export type Stmt =
-  /** A primitive (all effects from SPEC 5.2) or a call of another own effect. */
+export type Stmt = /** A primitive (all effects from SPEC 5.2) or a call of another own effect. */
+(
   | { kind: 'do'; effect: Effect }
   | { kind: 'if'; cond: Expr; then: Stmt[]; else: Stmt[] }
   /** WIEDERHOLE n MAL (max. 10) */
@@ -191,7 +214,24 @@ export type Stmt =
   /** TEXTUR feld "Name" */
   | { kind: 'texture'; tile: Expr; name: Expr }
   /** WARTE 0.5 (animation only, no game effect) */
-  | { kind: 'wait'; seconds: number };
+  | { kind: 'wait'; seconds: number }
+  // ---- Profi-Code (SPEC 5.8) ----
+  /** SOLANGE bedingung … ENDE (the step budget stops endless loops) */
+  | { kind: 'while'; cond: Expr; body: Stmt[] }
+  /** GIB ZURÜCK wert (functions only) */
+  | { kind: 'return'; value: Expr }
+  /** SENDE "name": raises the own event WENN EREIGNIS "name" */
+  | { kind: 'send'; event: string }
+  /** NACH n RUNDEN … ENDE: runs the body at the start of round + n */
+  | { kind: 'after'; rounds: number; body: Stmt[] }
+  /** liste.füge_hinzu(x) */
+  | { kind: 'listAdd'; list: string; value: Expr }
+  /** ZEIGE with a computed text, e.g. ZEIGE "Flut: " + welt.flut */
+  | { kind: 'say'; text: Expr }
+) & {
+  /** Source line (code view only; used by the debugger and error messages). */
+  line?: number;
+};
 
 export type StmtKind = Stmt['kind'];
 
@@ -206,11 +246,48 @@ export interface EffectDef {
   body: Stmt[];
 }
 
-/** Own effects and NPC types a rule needs, carried along into the game. */
+/** An own function (Profi-Code): computes a value, never changes the world. */
+export interface FunctionDef {
+  name: string;
+  author: string;
+  params: string[];
+  body: Stmt[];
+}
+
+/** NPC "Geist" ZUG … ENDE: replaces the movement template of an NPC type. */
+export interface NpcCode {
+  /** Name or id of the NPC type as written. */
+  npc: string;
+  body: Stmt[];
+}
+
+/** Everything a code text defines (SPEC 5.8). */
+export interface ProgramAST {
+  rules: RuleAST[];
+  effects: EffectDef[];
+  functions: FunctionDef[];
+  npcCode: NpcCode[];
+}
+
+/** Own effects, functions and NPC types a rule needs, carried along into the game. */
 export interface RuleBundle {
   effects: EffectDef[];
   npcTypes: import('../engine/types').NpcType[];
+  /** Own functions (Profi-Code); missing in bundles from v0.5. */
+  functions?: FunctionDef[];
 }
+
+/** Runtime values of the effect language (plain JSON, so they fit into GameState). */
+export type RuntimeValue =
+  | number
+  | string
+  | boolean
+  | null
+  | { t: 'fig'; id: string }
+  | { t: 'tile'; pos: { x: number; y: number } }
+  | { t: 'figs'; ids: string[] }
+  | { t: 'tiles'; pos: { x: number; y: number }[] }
+  | { t: 'list'; items: RuntimeValue[] };
 
 /** A rule as stored in the library and carried by the addRule action. */
 export interface RuleDefinition {

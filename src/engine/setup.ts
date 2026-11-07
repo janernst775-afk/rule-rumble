@@ -132,6 +132,8 @@ export function createGame(setup: GameSetup): { state: GameState; events: GameEv
     participants,
     npcTypes: structuredClone(DEFAULT_NPC_TYPES),
     effects: [],
+    functions: [],
+    delayed: [],
     rules: [],
     pendingVote: null,
     ruleDamage: {},

@@ -30,6 +30,8 @@ function frequency(t: Trigger): number {
     case 'tileAdded':
     case 'tileRemoved':
       return 0.4;
+    case 'custom':
+      return 0.5;
   }
 }
 
@@ -63,6 +65,7 @@ const EFFECT_WEIGHT: Record<Effect['kind'], number> = {
   setVar: 0.2,
   message: 0,
   call: 2.5,
+  code: 2.5,
 };
 
 function effectWeight(e: Effect): number {

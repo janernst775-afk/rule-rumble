@@ -1,4 +1,4 @@
-import type { EffectDef, RuleDefinition } from '../lang/ast';
+import type { EffectDef, FunctionDef, RuleDefinition, RuntimeValue, Stmt } from '../lang/ast';
 
 // Core engine types. Everything here is plain JSON: no classes, Maps or functions.
 
@@ -65,7 +65,7 @@ export interface Settings {
   };
 }
 
-export type TileType = 'normal' | 'lava' | 'eis' | 'heilquelle' | 'falle';
+export type TileType = 'normal' | 'lava' | 'eis' | 'heilquelle' | 'falle' | 'wasser';
 
 export interface Tile {
   pos: Pos;
@@ -133,6 +133,32 @@ export interface NpcType {
   hp: number;
   move: number;
   behavior: NpcBehavior;
+  /** NPC "…" ZUG (Profi-Code): replaces the movement template (SPEC 5.8). */
+  code?: Stmt[] | null;
+}
+
+/** Context values of an event, as rules and code see them (plain JSON). */
+export interface EventContext {
+  trigger?: FigureId;
+  attacker?: FigureId;
+  target?: FigureId;
+  tile?: Pos;
+  fromTile?: Pos;
+  amount?: number;
+  /** selbst: the NPC whose turn it is */
+  self?: FigureId;
+}
+
+/** NACH n RUNDEN … ENDE: code waiting for a later round (SPEC 5.8). */
+export interface DelayedCode {
+  id: string;
+  /** Rule instance that scheduled it; the code is dropped if the rule is gone. */
+  rule: string;
+  name: string;
+  dueRound: number;
+  body: Stmt[];
+  locals: Record<string, RuntimeValue>;
+  ctx: EventContext;
 }
 
 /** A rule in the running game. */
@@ -216,6 +242,10 @@ export interface GameState {
   npcTypes: NpcType[];
   /** Own effects from the effect workshop, brought in by rules (SPEC 5.7). */
   effects: EffectDef[];
+  /** Own functions (Profi-Code), brought in by rules (SPEC 5.8). */
+  functions: FunctionDef[];
+  /** NACH n RUNDEN blocks waiting for their round. */
+  delayed: DelayedCode[];
   rules: ActiveRule[];
   pendingVote: PendingVote | null;
   /** Rule damage taken per figure this round (attacks do not count). */
@@ -331,6 +361,8 @@ export type GameEvent =
   | { type: 'waited'; rule: string; seconds: number }
   | { type: 'textureChanged'; pos: Pos; textureId: string | null }
   | { type: 'effectAborted'; rule: string; name: string; reason: 'steps' | 'depth' | 'list' }
+  /** SENDE "name" (Profi-Code): rules with WENN EREIGNIS "name" react. */
+  | { type: 'customEvent'; rule: string; name: string }
   | { type: 'passed'; figure: FigureId }
   | { type: 'turnEnded'; figure: FigureId }
   | { type: 'roundEnded'; round: number }

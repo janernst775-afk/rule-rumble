@@ -1,496 +1,42 @@
-// Recursive-descent parser for the rule language (SPEC 5.3) → RuleAST.
+// Recursive-descent parser for the rule language (SPEC 5.3), effect texts (5.7) and
+// Profi-Code (5.8). One text may hold rules, own effects, functions and NPC behaviors.
+// Rules are line based; blocks (WENN … ENDE, FÜR JEDE … ENDE, …) span several lines.
 // Errors carry line, column and – where possible – a suggestion ("Meintest du …?").
-import type { TileType } from '../engine/types';
 import type {
-  CmpOp,
-  Effect,
+  EffectDef,
+  EffectParam,
   Expr,
-  FigureRef,
+  FunctionDef,
+  NpcCode,
+  ParamType,
+  ProgramAST,
   RuleAST,
   RuleLimit,
-  Target,
-  TileRef,
-  TileTarget,
+  Stmt,
   Trigger,
-  VarScope,
+  Effect,
 } from './ast';
-import {
-  ACTION_KW,
-  EVENT_KW,
-  FIGURE_PROP_W,
-  KW,
-  TARGET_W,
-  TILE_PROP_W,
-  TILE_TYPE_W,
-  TILE_W,
-  VALUE_W,
-  fold,
-  lookup,
-  spellings,
-} from './keywords';
+import { expr, isCodeStmt, newScope, opensBlock, stmtLine, type CodeScope } from './codeSyntax';
+import { DEF_KW, KW, PARAM_TYPE_W, STMT_KW, lookup, spellings } from './keywords';
 import { tokenize, type Token } from './lexer';
+import { Line, LineError, type ParseError, type ParsedRule, type RuleLines } from './line';
+import { EFFECT_NAME, RULE_PARSERS, action, orExpr, roundsWord, trigger } from './ruleSyntax';
 import { suggest } from './suggest';
 
-export interface ParseError {
-  /** i18n key suffix: parse.<code> */
-  code: string;
-  line: number;
-  col: number;
-  params?: Record<string, string | number>;
-  suggestion?: string;
-}
+export type { ParseError, ParsedRule, RuleLines } from './line';
 
-/** Source line of every part of a rule, so validator errors can name the line. */
-export interface RuleLines {
-  name: number;
-  trigger: number;
-  conditions: number[];
+/** Source lines of the definitions in a code text. */
+export interface ProgramLines {
   effects: number[];
-  elseEffects: number[];
-  duration: number | null;
-  limit: number | null;
+  functions: number[];
+  npcCode: number[];
 }
 
-export interface ParsedRule {
-  ast: RuleAST;
-  lines: RuleLines;
+export interface ParsedProgram {
+  program: ProgramAST;
+  rules: ParsedRule[];
+  lines: ProgramLines;
 }
-
-class LineError extends Error {
-  constructor(readonly error: ParseError) {
-    super(error.code);
-  }
-}
-
-const FIGURE_REFS: Record<string, FigureRef> = {
-  trigger: 'trigger',
-  attacker: 'attacker',
-  target: 'target',
-};
-
-const ALL_VALUE_WORDS = [
-  ...spellings(TARGET_W, 'de').slice(0, 3),
-  ...spellings(TILE_W, 'de').slice(0, 2),
-  ...spellings(VALUE_W, 'de'),
-  ...spellings(TILE_TYPE_W, 'de'),
-];
-
-/** Cursor over the tokens of one line. */
-class Line {
-  private i = 0;
-  constructor(
-    private readonly tokens: Token[],
-    readonly lineNo: number,
-  ) {}
-
-  peek(offset = 0): Token | undefined {
-    return this.tokens[this.i + offset];
-  }
-
-  done(): boolean {
-    return this.i >= this.tokens.length;
-  }
-
-  next(): Token | undefined {
-    return this.tokens[this.i++];
-  }
-
-  fail(
-    code: string,
-    token?: Token,
-    params?: ParseError['params'],
-    suggestion?: string | null,
-  ): never {
-    const t = token ?? this.peek() ?? this.tokens[this.tokens.length - 1];
-    const col = token ? token.col : t ? t.col + (this.done() ? t.text.length + 1 : 0) : 1;
-    const error: ParseError = { code, line: this.lineNo, col };
-    if (params) error.params = params;
-    if (suggestion) error.suggestion = suggestion;
-    throw new LineError(error);
-  }
-
-  /** Expects a word from `table`; returns its key. */
-  expectWord<K extends string>(table: Record<K, { de: string; en: string }>, code: string): K {
-    const t = this.next();
-    if (!t || t.kind !== 'word') this.fail(code, t, { found: t?.text ?? '' });
-    const key = lookup(table, t.text);
-    if (key === null) {
-      this.fail(code, t, { found: t.text }, suggest(t.text, spellings(table, 'de')));
-    }
-    return key;
-  }
-
-  isWord(w: { de: string; en: string }, offset = 0): boolean {
-    const t = this.peek(offset);
-    return !!t && t.kind === 'word' && (fold(t.text) === fold(w.de) || fold(t.text) === fold(w.en));
-  }
-
-  expectKw(w: { de: string; en: string }): void {
-    const t = this.next();
-    if (!t || t.kind !== 'word' || (fold(t.text) !== fold(w.de) && fold(t.text) !== fold(w.en))) {
-      this.fail('expected', t, { expected: w.de, found: t?.text ?? '' });
-    }
-  }
-
-  isSymbol(s: string, offset = 0): boolean {
-    const t = this.peek(offset);
-    return !!t && t.kind === 'symbol' && t.text === s;
-  }
-
-  expectSymbol(s: string): void {
-    const t = this.next();
-    if (!t || t.kind !== 'symbol' || t.text !== s) {
-      this.fail('expected', t, { expected: s, found: t?.text ?? '' });
-    }
-  }
-
-  number(): number {
-    const t = this.next();
-    if (!t || t.kind !== 'number') this.fail('expectedNumber', t, { found: t?.text ?? '' });
-    return Number(t.text);
-  }
-
-  signedNumber(): number {
-    if (this.isSymbol('+')) {
-      this.next();
-      return this.number();
-    }
-    if (this.isSymbol('-')) {
-      this.next();
-      return -this.number();
-    }
-    return this.number();
-  }
-
-  string(): string {
-    const t = this.next();
-    if (!t || t.kind !== 'string') this.fail('expectedString', t, { found: t?.text ?? '' });
-    return t.text;
-  }
-
-  end(): void {
-    const t = this.peek();
-    if (t) this.fail('trailing', t, { found: t.text });
-  }
-}
-
-// ---------- values and expressions ----------
-
-function tileProp(line: Line): 'type' | 'figureCount' | 'texture' {
-  return line.expectWord(TILE_PROP_W, 'unknownProperty');
-}
-
-function value(line: Line): Expr {
-  const t = line.peek();
-  if (!t) return line.fail('expectedValue');
-  if (t.kind === 'number' || line.isSymbol('-')) return { kind: 'num', value: line.signedNumber() };
-  if (t.kind === 'string') return { kind: 'str', value: line.string() };
-  if (t.kind !== 'word') return line.fail('expectedValue', t, { found: t.text });
-  line.next();
-  const target = lookup(TARGET_W, t.text);
-  if (target && FIGURE_REFS[target]) {
-    const ref = FIGURE_REFS[target] as FigureRef;
-    line.expectSymbol('.');
-    const propTok = line.peek();
-    const prop = propTok?.kind === 'word' ? lookup(FIGURE_PROP_W, propTok.text) : null;
-    if (prop === 'tile') {
-      line.next();
-      line.expectSymbol('.');
-      return { kind: 'tileProp', tile: { kind: 'figureTile', ref }, prop: tileProp(line) };
-    }
-    if (prop) {
-      line.next();
-      return { kind: 'figureProp', ref, prop };
-    }
-    const name = line.next();
-    if (!name || name.kind !== 'word') return line.fail('expectedName', name);
-    return { kind: 'figureVar', ref, name: name.text.toLowerCase() };
-  }
-  const tile = lookup(TILE_W, t.text);
-  if (tile === 'eventTile' || tile === 'fromTile') {
-    line.expectSymbol('.');
-    return { kind: 'tileProp', tile: { kind: tile }, prop: tileProp(line) };
-  }
-  const v = lookup(VALUE_W, t.text);
-  if (v === 'world') {
-    line.expectSymbol('.');
-    const name = line.next();
-    if (!name || name.kind !== 'word') return line.fail('expectedName', name);
-    return { kind: 'worldVar', name: name.text.toLowerCase() };
-  }
-  if (v === 'round' || v === 'tileCount' || v === 'npcCount') return { kind: 'global', name: v };
-  if (v === 'amount') return { kind: 'amount' };
-  const tileType = lookup(TILE_TYPE_W, t.text);
-  if (tileType) return { kind: 'str', value: tileType };
-  return line.fail('unknownValue', t, { found: t.text }, suggest(t.text, ALL_VALUE_WORDS));
-}
-
-const CMP_OPS = new Set<CmpOp>(['=', '!=', '<', '>', '<=', '>=']);
-
-function primary(line: Line): Expr {
-  if (line.isSymbol('(')) {
-    line.next();
-    const inner = orExpr(line);
-    line.expectSymbol(')');
-    return inner;
-  }
-  if (line.isWord(KW.chance)) {
-    line.next();
-    const percent = line.number();
-    line.expectSymbol('%');
-    return { kind: 'chance', percent };
-  }
-  const left = value(line);
-  const op = line.next();
-  if (!op || op.kind !== 'symbol' || !CMP_OPS.has(op.text as CmpOp)) {
-    return line.fail('expectedComparison', op, { found: op?.text ?? '' });
-  }
-  const right = value(line);
-  return { kind: 'cmp', op: op.text as CmpOp, left, right };
-}
-
-function notExpr(line: Line): Expr {
-  if (line.isWord(KW.not)) {
-    line.next();
-    return { kind: 'not', item: notExpr(line) };
-  }
-  return primary(line);
-}
-
-function andExpr(line: Line): Expr {
-  const items = [notExpr(line)];
-  while (line.isWord(KW.and)) {
-    line.next();
-    items.push(notExpr(line));
-  }
-  return items.length === 1 ? items[0]! : { kind: 'and', items };
-}
-
-function orExpr(line: Line): Expr {
-  const items = [andExpr(line)];
-  while (line.isWord(KW.or)) {
-    line.next();
-    items.push(andExpr(line));
-  }
-  return items.length === 1 ? items[0]! : { kind: 'or', items };
-}
-
-// ---------- targets ----------
-
-function figureRefOf(word: string): FigureRef | null {
-  const t = lookup(TARGET_W, word);
-  return t && FIGURE_REFS[t] ? (FIGURE_REFS[t] as FigureRef) : null;
-}
-
-function target(line: Line): Target {
-  const key = line.expectWord(TARGET_W, 'unknownTarget');
-  const ref = FIGURE_REFS[key];
-  return ref ? { kind: 'ref', ref: ref as FigureRef } : ({ kind: key } as Target);
-}
-
-function tileType(line: Line): TileType {
-  return line.expectWord(TILE_TYPE_W, 'unknownTileType');
-}
-
-function tileTarget(line: Line): TileTarget {
-  const t = line.peek();
-  if (t?.kind === 'word') {
-    const ref = figureRefOf(t.text);
-    if (ref) {
-      line.next();
-      line.expectSymbol('.');
-      line.expectKw(FIGURE_PROP_W.tile);
-      return { kind: 'figureTile', ref };
-    }
-  }
-  const key = line.expectWord(TILE_W, 'unknownTileTarget');
-  if (key === 'newTile') return line.fail('unknownTileTarget', t, { found: t?.text ?? '' });
-  if (key === 'tilesOfType') return { kind: 'tilesOfType', tileType: tileType(line) };
-  return { kind: key } as TileTarget;
-}
-
-function roundsWord(line: Line): void {
-  if (line.isWord(KW.round) || line.isWord(KW.rounds)) line.next();
-  else
-    line.fail('expected', line.peek(), { expected: KW.rounds.de, found: line.peek()?.text ?? '' });
-}
-
-// ---------- actions ----------
-
-/** Argument of an effect call in a rule: values, figures, tiles or sets (SPEC 5.7). */
-function callArg(line: Line): Expr {
-  const t = line.peek();
-  if (t?.kind === 'word') {
-    const followedByDot = line.isSymbol('.', 1);
-    const target = lookup(TARGET_W, t.text);
-    if (target) {
-      const ref = FIGURE_REFS[target];
-      if (ref && !followedByDot) {
-        line.next();
-        return { kind: 'figureRef', ref: ref as FigureRef };
-      }
-      // ziel.feld (the tile of a figure) unless a tile property follows (ziel.feld.typ)
-      const third = line.peek(2);
-      if (
-        ref &&
-        third?.kind === 'word' &&
-        lookup(FIGURE_PROP_W, third.text) === 'tile' &&
-        !line.isSymbol('.', 3)
-      ) {
-        line.next();
-        line.next();
-        line.next();
-        return { kind: 'tileRef', tile: { kind: 'figureTile', ref: ref as FigureRef } };
-      }
-      if (!ref) {
-        line.next();
-        return { kind: 'targets', target: { kind: target } as Target };
-      }
-    }
-    const tile = lookup(TILE_W, t.text);
-    if ((tile === 'eventTile' || tile === 'fromTile') && !followedByDot) {
-      line.next();
-      return { kind: 'tileRef', tile: { kind: tile } };
-    }
-    if (tile && tile !== 'eventTile' && tile !== 'fromTile' && tile !== 'newTile') {
-      return { kind: 'tiles', target: tileTarget(line) };
-    }
-  }
-  return value(line);
-}
-
-const EFFECT_NAME = /^[A-Za-zÄÖÜäöüß_][A-Za-zÄÖÜäöüß_0-9]*$/;
-
-function action(line: Line): Effect {
-  // Own effect: Name(arg, …)
-  const first = line.peek();
-  if (first?.kind === 'word' && line.isSymbol('(', 1) && EFFECT_NAME.test(first.text)) {
-    line.next();
-    line.next();
-    const args: Expr[] = [];
-    if (!line.isSymbol(')')) {
-      args.push(callArg(line));
-      while (line.isSymbol(',')) {
-        line.next();
-        args.push(callArg(line));
-      }
-    }
-    line.expectSymbol(')');
-    return { kind: 'call', effect: first.text, args };
-  }
-  const kind = line.expectWord(ACTION_KW, 'unknownAction');
-  switch (kind) {
-    case 'spawn': {
-      const npc = line.next();
-      if (!npc || npc.kind !== 'word') return line.fail('expectedName', npc);
-      line.expectKw(KW.at);
-      return { kind: 'spawn', npcType: npc.text.toLowerCase(), at: tileTarget(line) };
-    }
-    case 'damage':
-    case 'heal':
-    case 'shield': {
-      const t = target(line);
-      return { kind, target: t, amount: line.number() };
-    }
-    case 'skip': {
-      const t = target(line);
-      return { kind: 'skip', target: t, turns: line.number() };
-    }
-    case 'moveMod': {
-      const t = target(line);
-      const delta = line.signedNumber();
-      line.expectKw(KW.for);
-      const rounds = line.number();
-      roundsWord(line);
-      return { kind: 'moveMod', target: t, delta, rounds };
-    }
-    case 'wheelMod': {
-      const t = target(line);
-      const delta = line.signedNumber();
-      line.expectSymbol('%');
-      line.expectKw(KW.for);
-      const rounds = line.number();
-      roundsWord(line);
-      return { kind: 'wheelMod', target: t, delta, rounds };
-    }
-    case 'teleport': {
-      const t = target(line);
-      line.expectKw(KW.randomly);
-      return { kind: 'teleport', target: t };
-    }
-    case 'push': {
-      const t = target(line);
-      line.expectKw(KW.awayFrom);
-      const from = tileTarget(line);
-      return { kind: 'push', target: t, from, distance: line.number() };
-    }
-    case 'setTileType': {
-      const at = tileTarget(line);
-      line.expectKw(KW.to);
-      return { kind: 'setTileType', at, tileType: tileType(line) };
-    }
-    case 'removeTile':
-      return { kind: 'removeTile', at: tileTarget(line) };
-    case 'addTileNear':
-      line.expectKw(KW.nextTo);
-      return { kind: 'addTileNear', at: tileTarget(line) };
-    case 'setVar': {
-      const first = line.peek();
-      let scope: VarScope;
-      if (first?.kind === 'word' && lookup(VALUE_W, first.text) === 'world') {
-        line.next();
-        scope = { kind: 'world' };
-      } else {
-        scope = { kind: 'figures', target: target(line) };
-      }
-      line.expectSymbol('.');
-      const name = line.next();
-      if (!name || name.kind !== 'word') return line.fail('expectedName', name);
-      const op = line.next();
-      if (!op || op.kind !== 'symbol' || !['=', '+', '-'].includes(op.text)) {
-        return line.fail('expected', op, { expected: '= + -', found: op?.text ?? '' });
-      }
-      return {
-        kind: 'setVar',
-        scope,
-        name: name.text.toLowerCase(),
-        op: op.text as '=' | '+' | '-',
-        value: value(line),
-      };
-    }
-    case 'message':
-      return { kind: 'message', text: line.string() };
-  }
-}
-
-// ---------- events ----------
-
-function trigger(line: Line): Trigger {
-  if (line.isWord(KW.every)) {
-    line.next();
-    const n = line.number();
-    roundsWord(line);
-    return { kind: 'everyNRounds', n };
-  }
-  const kind = line.expectWord(EVENT_KW, 'unknownEvent');
-  if (kind === 'enters') {
-    const t = line.next();
-    const w = t?.kind === 'word' ? lookup(TILE_W, t.text) : null;
-    if (w === 'eventTile') return { kind: 'enters', newOnly: false };
-    if (w === 'newTile') return { kind: 'enters', newOnly: true };
-    return line.fail('expected', t, { expected: 'feld / neues_feld', found: t?.text ?? '' });
-  }
-  if (kind === 'leaves') {
-    const t = line.next();
-    if (!t || t.kind !== 'word' || lookup(TILE_W, t.text) !== 'eventTile') {
-      return line.fail('expected', t, { expected: 'feld', found: t?.text ?? '' });
-    }
-    return { kind: 'leaves' };
-  }
-  return { kind } as Trigger;
-}
-
-// ---------- rules ----------
 
 type LineKind = 'rule' | 'when' | 'and' | 'then' | 'else' | 'duration' | 'limit';
 const LINE_STARTS: Record<LineKind, { de: string; en: string }> = {
@@ -512,8 +58,20 @@ interface Draft {
   duration: number | null;
   limit: RuleLimit | null;
   lines: RuleLines;
+  scope: CodeScope;
   /** A line of this rule had an error: suppress follow-up "missing" errors. */
   failed: boolean;
+}
+
+/** An open block: the lines that follow fill `target` until ENDE. */
+interface Frame {
+  line: number;
+  target: Stmt[];
+  /** WENN block: SONST switches to the else list. */
+  ifStmt: Extract<Stmt, { kind: 'if' }> | null;
+  inElse: boolean;
+  /** The block is the body of a definition (EFFEKT, FUNKTION, NPC). */
+  def: 'effect' | 'function' | 'npc' | null;
 }
 
 function splitLines(tokens: Token[]): Token[][] {
@@ -528,14 +86,66 @@ function splitLines(tokens: Token[]): Token[][] {
   return out;
 }
 
-/** Parses a text with one or more rules. */
-export function parseRules(source: string): { rules: ParsedRule[]; errors: ParseError[] } {
+const PARAM_TYPE_KEYS = PARAM_TYPE_W as Record<ParamType, { de: string; en: string }>;
+
+/** ( name: Typ, … ) of an effect header; the list is optional. */
+function effectParams(line: Line): EffectParam[] {
+  const params: EffectParam[] = [];
+  if (!line.isSymbol('(')) return params;
+  line.next();
+  if (!line.isSymbol(')')) {
+    for (;;) {
+      const name = line.next();
+      if (!name || name.kind !== 'word') return line.fail('expectedName', name);
+      line.expectSymbol(':');
+      const type = line.expectWord(PARAM_TYPE_KEYS, 'unknownParamType');
+      params.push({ name: name.text, type });
+      if (!line.isSymbol(',')) break;
+      line.next();
+    }
+  }
+  line.expectSymbol(')');
+  return params;
+}
+
+/** ( a, b ) of a function header. */
+function functionParams(line: Line): string[] {
+  const params: string[] = [];
+  line.expectSymbol('(');
+  if (!line.isSymbol(')')) {
+    for (;;) {
+      const name = line.next();
+      if (!name || name.kind !== 'word') return line.fail('expectedName', name);
+      params.push(name.text);
+      if (!line.isSymbol(',')) break;
+      line.next();
+    }
+  }
+  line.expectSymbol(')');
+  return params;
+}
+
+function nameOrString(line: Line): string {
+  const t = line.peek();
+  if (t?.kind === 'string') return line.string();
+  const name = line.next();
+  if (!name || name.kind !== 'word') return line.fail('expectedName', name);
+  return name.text;
+}
+
+/** Parses a code text with rules, effects, functions and NPC behaviors. */
+export function parseProgram(source: string): { parsed: ParsedProgram; errors: ParseError[] } {
   const { tokens, errors: lexErrors } = tokenize(source);
   const errors: ParseError[] = lexErrors.map((e) => ({ ...e }) as ParseError);
+  const program: ProgramAST = { rules: [], effects: [], functions: [], npcCode: [] };
   const rules: ParsedRule[] = [];
+  const lines: ProgramLines = { effects: [], functions: [], npcCode: [] };
   let draft: Draft | null = null;
+  /** Scope of the definition being parsed (EFFEKT, FUNKTION, NPC). */
+  let defScope: CodeScope | null = null;
+  const frames: Frame[] = [];
 
-  const finish = () => {
+  const finishRule = () => {
     if (!draft) return;
     const d = draft;
     if (!d.failed && !d.trigger) errors.push({ code: 'missingWhen', line: d.lines.name, col: 1 });
@@ -543,28 +153,127 @@ export function parseRules(source: string): { rules: ParsedRule[]; errors: Parse
       errors.push({ code: 'missingThen', line: d.lines.name, col: 1 });
     }
     if (d.trigger) {
-      rules.push({
-        ast: {
-          name: d.name,
-          trigger: d.trigger,
-          conditions: d.conditions,
-          effects: d.effects,
-          elseEffects: d.elseEffects,
-          duration: d.duration,
-          limit: d.limit,
-        },
-        lines: d.lines,
-      });
+      const ast: RuleAST = {
+        name: d.name,
+        trigger: d.trigger,
+        conditions: d.conditions,
+        effects: d.effects,
+        elseEffects: d.elseEffects,
+        duration: d.duration,
+        limit: d.limit,
+      };
+      program.rules.push(ast);
+      rules.push({ ast, lines: d.lines });
     }
     draft = null;
   };
 
+  const push = (frame: Omit<Frame, 'inElse' | 'ifStmt' | 'def'> & Partial<Frame>) => {
+    frames.push({ ifStmt: null, inElse: false, def: null, ...frame });
+  };
+
+  /** A statement line inside a block. */
+  const blockLine = (line: Line, scope: CodeScope) => {
+    const top = frames[frames.length - 1]!;
+    if (line.isPhrase(STMT_KW.end)) {
+      line.expectPhrase(STMT_KW.end);
+      line.end();
+      frames.pop();
+      if (top.def) defScope = null;
+      return;
+    }
+    if (line.isWord(KW.else) && line.peek(1) === undefined) {
+      if (!top.ifStmt || top.inElse) line.fail('misplacedElse', line.peek());
+      line.next();
+      top.inElse = true;
+      top.target = top.ifStmt.else;
+      return;
+    }
+    try {
+      const { stmt, opens } = stmtLine(line, scope);
+      top.target.push(stmt);
+      if (opens) {
+        push({
+          line: line.lineNo,
+          target: opens,
+          ifStmt: stmt.kind === 'if' ? stmt : null,
+        });
+      }
+    } catch (e) {
+      // Keep ENDE lines balanced after a broken block header.
+      if (e instanceof LineError && opensBlock(new Line(lineTokens, line.lineNo))) {
+        push({ line: line.lineNo, target: [] });
+      }
+      throw e;
+    }
+  };
+
+  /** DANN / SONST of a rule: a plain action or one code statement (maybe a block). */
+  const ruleEffect = (line: Line, d: Draft): Effect => {
+    if (!isCodeStmt(line)) return action(line, { ...RULE_PARSERS, value: (l) => expr(l, d.scope) });
+    const { stmt, opens } = stmtLine(line, d.scope);
+    if (opens) {
+      push({ line: line.lineNo, target: opens, ifStmt: stmt.kind === 'if' ? stmt : null });
+    }
+    return { kind: 'code', stmt };
+  };
+
+  let lineTokens: Token[] = [];
   for (const toks of splitLines(tokens)) {
     const first = toks[0];
     if (!first) continue;
+    lineTokens = toks;
     // Explicit type so that `never`-returning fail() narrows (TS control flow).
     const line: Line = new Line(toks, first.line);
     try {
+      if (frames.length > 0) {
+        const scope = defScope ?? draft?.scope ?? newScope();
+        blockLine(line, scope);
+        continue;
+      }
+      if (line.isWord(DEF_KW.effect)) {
+        finishRule();
+        line.next();
+        const name = nameOrString(line);
+        const params = effectParams(line);
+        line.end();
+        const def: EffectDef = { name, author: '', symbol: '', params, body: [] };
+        program.effects.push(def);
+        lines.effects.push(line.lineNo);
+        defScope = newScope(params.map((p) => p.name));
+        push({ line: line.lineNo, target: def.body, def: 'effect' });
+        continue;
+      }
+      if (line.isWord(DEF_KW.function)) {
+        finishRule();
+        line.next();
+        const name = line.next();
+        if (!name || name.kind !== 'word' || !EFFECT_NAME.test(name.text)) {
+          line.fail('expectedName', name);
+        }
+        const params = functionParams(line);
+        line.end();
+        const def: FunctionDef = { name: name.text, author: '', params, body: [] };
+        program.functions.push(def);
+        lines.functions.push(line.lineNo);
+        defScope = newScope(params);
+        push({ line: line.lineNo, target: def.body, def: 'function' });
+        continue;
+      }
+      if (line.isWord(DEF_KW.npc)) {
+        finishRule();
+        line.next();
+        const npc = nameOrString(line);
+        line.expectKw(KW.turn);
+        line.end();
+        const code: NpcCode = { npc, body: [] };
+        program.npcCode.push(code);
+        lines.npcCode.push(line.lineNo);
+        defScope = newScope([], true);
+        push({ line: line.lineNo, target: code.body, def: 'npc' });
+        continue;
+      }
+      if (line.isPhrase(STMT_KW.end)) line.fail('unexpectedEnd', first);
       const kind = first.kind === 'word' ? lookup(LINE_STARTS, first.text) : null;
       if (!kind) {
         line.fail(
@@ -572,16 +281,16 @@ export function parseRules(source: string): { rules: ParsedRule[]; errors: Parse
           first,
           { found: first.text },
           first.kind === 'word'
-            ? suggest(
-                first.text,
-                Object.values(LINE_STARTS).map((w) => w.de),
-              )
+            ? suggest(first.text, [
+                ...Object.values(LINE_STARTS).map((w) => w.de),
+                ...spellings(DEF_KW, 'de'),
+              ])
             : null,
         );
       }
       line.next();
       if (kind === 'rule') {
-        finish();
+        finishRule();
         const name = line.string();
         line.end();
         draft = {
@@ -593,6 +302,7 @@ export function parseRules(source: string): { rules: ParsedRule[]; errors: Parse
           duration: null,
           limit: null,
           failed: false,
+          scope: newScope(),
           lines: {
             name: line.lineNo,
             trigger: line.lineNo,
@@ -622,14 +332,14 @@ export function parseRules(source: string): { rules: ParsedRule[]; errors: Parse
         case 'then':
           if (!d.trigger && !d.failed) line.fail('missingWhen', first);
           if (d.elseEffects.length > 0) line.fail('thenAfterElse', first);
-          d.effects.push(action(line));
           d.lines.effects.push(line.lineNo);
-          break;
+          d.effects.push(ruleEffect(line, d));
+          continue;
         case 'else':
           if (d.effects.length === 0 && !d.failed) line.fail('missingThen', first);
-          d.elseEffects.push(action(line));
           d.lines.elseEffects.push(line.lineNo);
-          break;
+          d.elseEffects.push(ruleEffect(line, d));
+          continue;
         case 'duration':
           d.duration = line.number();
           roundsWord(line);
@@ -664,12 +374,24 @@ export function parseRules(source: string): { rules: ParsedRule[]; errors: Parse
       if (draft) (draft as Draft).failed = true;
     }
   }
-  finish();
-  if (rules.length === 0 && errors.length === 0) {
+  for (const f of frames.reverse()) {
+    errors.push({ code: 'missingEnd', line: f.line, col: 1 });
+  }
+  finishRule();
+  errors.sort((a, b) => a.line - b.line || a.col - b.col);
+  return { parsed: { program, rules, lines }, errors };
+}
+
+/** Parses a text with one or more rules (no other definitions). */
+export function parseRules(source: string): { rules: ParsedRule[]; errors: ParseError[] } {
+  const { parsed, errors } = parseProgram(source);
+  const others = [...parsed.lines.effects, ...parsed.lines.functions, ...parsed.lines.npcCode];
+  for (const line of others) errors.push({ code: 'rulesOnly', line, col: 1 });
+  if (parsed.rules.length === 0 && errors.length === 0) {
     errors.push({ code: 'expectedRule', line: 1, col: 1 });
   }
   errors.sort((a, b) => a.line - b.line || a.col - b.col);
-  return { rules, errors };
+  return { rules: parsed.rules, errors };
 }
 
 /** Parses exactly one rule (the editor's text view). */
@@ -681,4 +403,26 @@ export function parseRule(source: string): { rule: ParsedRule | null; errors: Pa
   return { rule: errors.length === 0 ? (rules[0] ?? null) : null, errors };
 }
 
-export type { TileRef };
+/** Parses the text of exactly one own effect (the code view of the effect workshop). */
+export function parseEffectText(source: string): {
+  effect: EffectDef | null;
+  errors: ParseError[];
+} {
+  const { parsed, errors } = parseProgram(source);
+  const others = [
+    ...parsed.rules.map((r) => r.lines.name),
+    ...parsed.lines.functions,
+    ...parsed.lines.npcCode,
+    ...parsed.lines.effects.slice(1),
+  ];
+  for (const line of others) errors.push({ code: 'oneEffectOnly', line, col: 1 });
+  if (parsed.program.effects.length === 0 && errors.length === 0) {
+    errors.push({ code: 'expectedEffect', line: 1, col: 1 });
+  }
+  return { effect: errors.length === 0 ? (parsed.program.effects[0] ?? null) : null, errors };
+}
+
+/** Removes source line numbers (to compare code with blocks). */
+export function stripLines<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value, (k, v: unknown) => (k === 'line' ? undefined : v))) as T;
+}

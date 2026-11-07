@@ -5,9 +5,20 @@ import type { Bus } from '../engine/bus';
 import { CHAIN_LIMITS } from '../engine/limits';
 import { isRuleActive } from '../engine/rules';
 import { emit } from '../engine/bus';
-import type { ActiveRule, GameEvent, GameState } from '../engine/types';
+import type { ActiveRule, Figure, GameEvent, GameState, NpcType } from '../engine/types';
 import type { Trigger } from './ast';
-import { EffectAbort, evaluate, execEffect, newEnv, truthy, type RuleContext } from './interpreter';
+import {
+  EffectAbort,
+  Return,
+  evaluate,
+  execEffect,
+  newEnv,
+  runStmts,
+  truthy,
+  type CodeSource,
+  type RuleContext,
+  type Value,
+} from './interpreter';
 
 export type { RuleContext } from './interpreter';
 
@@ -65,6 +76,11 @@ function contextFor(
         matches: (t) => t.kind === 'tileRemoved',
         ctx: { trigger: event.figure ?? undefined, tile: event.pos },
       };
+    case 'customEvent':
+      return {
+        matches: (t) => t.kind === 'custom' && t.event.toLowerCase() === event.name,
+        ctx: {},
+      };
     default:
       return null;
   }
@@ -83,6 +99,7 @@ function limitReached(rule: ActiveRule): boolean {
 }
 
 export function reactToEvent(bus: Bus, event: GameEvent): void {
+  if (event.type === 'roundStarted') runDelayed(bus);
   const mapped = contextFor(event);
   if (!mapped) return;
   const state = bus.state;
@@ -115,12 +132,12 @@ function runRule(bus: Bus, rule: ActiveRule, ctx: RuleContext): void {
   const state = bus.state;
   const ast = rule.def.ast;
   // One environment (and step budget) per firing: conditions and effects share it.
-  const env = newEnv(bus, rule, ctx);
+  const env = newEnv(bus, sourceOf(rule), ctx);
   let ok: boolean;
   try {
     ok = ast.conditions.every((c) => truthy(evaluate(env, c)));
   } catch (e) {
-    if (e instanceof EffectAbort) return aborted(bus, rule, e);
+    if (e instanceof EffectAbort) return aborted(bus, sourceOf(rule), e);
     throw e;
   }
   const branch = ok ? ast.effects : ast.elseEffects;
@@ -144,24 +161,69 @@ function runRule(bus: Bus, rule: ActiveRule, ctx: RuleContext): void {
     }
   } catch (e) {
     // Budget, call depth or list limit exceeded: stop this rule, keep its changes so far.
-    if (e instanceof EffectAbort) aborted(bus, rule, e);
-    else throw e;
+    if (e instanceof EffectAbort) aborted(bus, sourceOf(rule), e);
+    else if (!(e instanceof Return)) throw e;
   } finally {
     bus.depth -= 1;
     bus.causes.pop();
   }
 }
 
-function aborted(bus: Bus, rule: ActiveRule, e: EffectAbort): void {
+function sourceOf(rule: ActiveRule): CodeSource {
+  return { id: rule.id, name: rule.def.ast.name };
+}
+
+function aborted(bus: Bus, source: CodeSource, e: EffectAbort): void {
   bus.state.log.push({
     round: bus.state.round,
     key: `log.effectAborted.${e.reason}`,
-    params: { rule: rule.def.ast.name },
+    params: { rule: source.name },
   });
   bus.events.push({
     type: 'effectAborted',
-    rule: rule.id,
-    name: rule.def.ast.name,
+    rule: source.id,
+    name: source.name,
     reason: e.reason,
   });
+}
+
+/** Runs code with its own budget; limits stop it, changes until then stay. */
+function runGuarded(bus: Bus, source: CodeSource, run: () => void): void {
+  bus.depth += 1;
+  bus.causes.push(source.id);
+  try {
+    run();
+  } catch (e) {
+    if (e instanceof EffectAbort) aborted(bus, source, e);
+    else if (!(e instanceof Return)) throw e;
+  } finally {
+    bus.depth -= 1;
+    bus.causes.pop();
+  }
+}
+
+/** NACH n RUNDEN: blocks whose round has come run at round start (SPEC 5.8). */
+function runDelayed(bus: Bus): void {
+  const state = bus.state;
+  const due = (state.delayed ?? []).filter((d) => d.dueRound <= state.round);
+  if (due.length === 0) return;
+  state.delayed = state.delayed.filter((d) => d.dueRound > state.round);
+  for (const d of due) {
+    if (state.status !== 'playing') return;
+    // The code belongs to its rule: if the rule left the game, the code is dropped.
+    const rule = state.rules.find((r) => r.id === d.rule);
+    if (!rule) continue;
+    const source = sourceOf(rule);
+    const env = newEnv(bus, source, d.ctx);
+    for (const [k, v] of Object.entries(d.locals)) env.locals.set(k, v as Value);
+    runGuarded(bus, source, () => runStmts(env, d.body));
+  }
+}
+
+/** NPC "…" ZUG: the NPC's own behavior replaces its movement template (SPEC 5.8). */
+export function runNpcCode(bus: Bus, npc: Figure, type: NpcType): void {
+  if (!type.code || type.code.length === 0) return;
+  const source: CodeSource = { id: npc.id, name: type.name };
+  const env = newEnv(bus, source, { self: npc.id });
+  runGuarded(bus, source, () => runStmts(env, type.code ?? []));
 }

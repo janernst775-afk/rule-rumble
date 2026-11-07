@@ -28,6 +28,7 @@ export const TRIGGER_CONTEXT: Record<TriggerKind, TriggerContext> = {
   dies: { ...none, figures: ['trigger'], eventTile: true },
   tileAdded: { ...none, figures: ['trigger'], eventTile: true },
   tileRemoved: { ...none, figures: ['trigger'], eventTile: true },
+  custom: none,
 };
 
 /** Whether a figure-relative target set (onTile, neighbors, nearest) has an anchor. */

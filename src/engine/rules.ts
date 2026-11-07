@@ -1,8 +1,8 @@
 // Rule lifecycle in a running game: adding (with the four overflow variants),
 // activation, duration and votes (SPEC 2.2, 5.1, 6.1).
-import { validateEffect, validateRule } from '../lang/validator';
+import { validateEffect, validateFunction, validateNpcCode, validateRule } from '../lang/validator';
 import { NPC_LIMITS } from './limits';
-import type { EffectDef, RuleDefinition } from '../lang/ast';
+import type { EffectDef, FunctionDef, RuleDefinition } from '../lang/ast';
 import { emit, type Bus } from './bus';
 import { endTurn, log } from './turn';
 import type { ActionErrorCode, ActiveRule, FigureId, GameState, NpcType } from './types';
@@ -30,13 +30,25 @@ export function addRuleError(
   rule: RuleDefinition,
   replaceRuleId: string | undefined,
 ): ActionErrorCode | null {
-  const { effects, npcTypes } = withBundle(state, rule);
-  if (validateRule(rule.ast, state.settings, npcTypes, effects).length > 0) return 'invalidRule';
+  const { effects, npcTypes, functions } = withBundle(state, rule);
+  const settings = state.settings;
+  if (validateRule(rule.ast, settings, npcTypes, effects, functions).length > 0) {
+    return 'invalidRule';
+  }
   for (const def of rule.bundle?.effects ?? []) {
-    if (validateEffect(def, state.settings, npcTypes, effects).length > 0) return 'invalidRule';
+    if (validateEffect(def, settings, npcTypes, effects, functions).length > 0) {
+      return 'invalidRule';
+    }
+  }
+  for (const def of rule.bundle?.functions ?? []) {
+    if (validateFunction(def, settings, functions).length > 0) return 'invalidRule';
   }
   for (const npc of rule.bundle?.npcTypes ?? []) {
     if (!validNpcType(npc)) return 'invalidRule';
+    const code = npc.code ? { npc: npc.id, body: npc.code } : null;
+    if (code && validateNpcCode(code, settings, npcTypes, effects, functions).length > 0) {
+      return 'invalidRule';
+    }
   }
   if (!ruleSlotsFull(state)) return null;
   switch (state.settings.rules.overflow) {
@@ -64,7 +76,7 @@ function removeRule(bus: Bus, ruleId: string, reason: 'overflow' | 'expired' | '
 export function withBundle(
   state: GameState,
   rule: RuleDefinition,
-): { effects: EffectDef[]; npcTypes: NpcType[] } {
+): { effects: EffectDef[]; npcTypes: NpcType[]; functions: FunctionDef[] } {
   const effects = [...state.effects];
   for (const def of rule.bundle?.effects ?? []) {
     const i = effects.findIndex((e) => e.name.toLowerCase() === def.name.toLowerCase());
@@ -77,7 +89,13 @@ export function withBundle(
     if (i >= 0) npcTypes[i] = npc;
     else npcTypes.push(npc);
   }
-  return { effects, npcTypes };
+  const functions = [...(state.functions ?? [])];
+  for (const def of rule.bundle?.functions ?? []) {
+    const i = functions.findIndex((f) => f.name.toLowerCase() === def.name.toLowerCase());
+    if (i >= 0) functions[i] = def;
+    else functions.push(def);
+  }
+  return { effects, npcTypes, functions };
 }
 
 /** Own NPC types (SPEC 5.9): life 1–3, movement 0–3, a behavior template. */
@@ -103,6 +121,7 @@ function insertRule(bus: Bus, def: RuleDefinition, authorId: FigureId): void {
   const merged = withBundle(state, def);
   state.effects = structuredClone(merged.effects);
   state.npcTypes = structuredClone(merged.npcTypes);
+  state.functions = structuredClone(merged.functions);
   const id = `r${state.nextId++}`;
   const activeFromRound = state.round + state.settings.rules.activationDelay;
   const rule: ActiveRule = {

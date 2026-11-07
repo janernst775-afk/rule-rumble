@@ -5,6 +5,7 @@ import {
   createTile,
   DIRECTIONS,
   hasTile,
+  neighborTiles,
   orthogonalPositions,
   parseKey,
   samePos,
@@ -112,6 +113,18 @@ export function teleportRandom(bus: Bus, id: FigureId): void {
   const options = Object.keys(bus.state.tiles)
     .map(parseKey)
     .filter((p) => !samePos(p, fig.pos));
+  const to = randomPick(bus.state, options);
+  if (to) stepFigure(bus, id, to);
+}
+
+/** TELEPORT ziel NEBEN feld: to a random free tile next to `pos` (SPEC 5.8). */
+export function teleportNear(bus: Bus, id: FigureId, pos: Pos): void {
+  const fig = alive(bus, id);
+  if (!fig) return;
+  const occupied = Object.values(bus.state.figures).filter((f) => f.alive && f.id !== id);
+  const options = neighborTiles(bus.state.tiles, pos).filter(
+    (p) => !samePos(p, fig.pos) && !occupied.some((f) => samePos(f.pos, p)),
+  );
   const to = randomPick(bus.state, options);
   if (to) stepFigure(bus, id, to);
 }

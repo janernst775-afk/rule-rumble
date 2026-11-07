@@ -89,7 +89,7 @@ describe('validator', () => {
     expect(
       codes(
         rule('A', on.enters(), {
-          when: [x.cmp(x.tileType(), '=', x.str('wasser'))],
+          when: [x.cmp(x.tileType(), '=', x.str('sumpf'))],
           then: [fx.say('a')],
         }),
       ),

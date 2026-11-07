@@ -52,6 +52,24 @@ export const EFFECT_LIMITS = {
   maxNesting: 6,
 } as const;
 
+/** Profi-Code (SPEC 5.8): fixed protection rules on top of EFFECT_LIMITS. */
+export const CODE_LIMITS = {
+  /** Calls of own functions nested in each other (recursion). */
+  maxRecursion: 20,
+  /** Statements of a code text definition (effects, functions, NPC behavior). */
+  maxStmts: 200,
+  maxNesting: 10,
+  /** NACH n RUNDEN */
+  delayRounds: { min: 1, max: 10 },
+  /** NACH blocks waiting at the same time; more are dropped. */
+  maxDelayed: 20,
+  /** Length of event names and texts built at runtime. */
+  maxEventName: 30,
+  maxText: 200,
+  /** Recorded debugger steps per run. */
+  maxTrace: 2000,
+} as const;
+
 /** Own NPC types (SPEC 5.9). */
 export const NPC_LIMITS = {
   hp: { min: 1, max: 3 },

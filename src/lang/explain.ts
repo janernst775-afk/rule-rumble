@@ -11,6 +11,7 @@ function figure(ref: FigureRef, t: Translate): string {
 
 function triggerText(tr: Trigger, t: Translate): string {
   if (tr.kind === 'everyNRounds') return t('explain.trigger.everyNRounds', { n: tr.n });
+  if (tr.kind === 'custom') return t('explain.trigger.custom', { event: tr.event });
   if (tr.kind === 'enters')
     return t(tr.newOnly ? 'explain.trigger.entersNew' : 'explain.trigger.enters');
   return t(`explain.trigger.${tr.kind}`);
@@ -47,6 +48,11 @@ function valueText(e: Expr, t: Translate): string {
     case 'tileRef':
     case 'targets':
     case 'tiles':
+    case 'arith':
+    case 'list':
+    case 'fcall':
+    case 'self':
+    case 'prop':
       return printExprText(e, 'de');
     default:
       return condText(e, t);
@@ -97,8 +103,16 @@ export function effectText(e: Effect, t: Translate): string {
     case 'heal':
     case 'shield':
     case 'skip':
-    case 'teleport':
       return t(`explain.effect.${e.kind}`, { target: targetText(e.target, t) });
+    case 'teleport':
+      return e.near
+        ? t('explain.effect.teleportNear', {
+            target: targetText(e.target, t),
+            tile: tileText(e.near, t),
+          })
+        : t('explain.effect.teleport', { target: targetText(e.target, t) });
+    case 'code':
+      return t('explain.effect.code');
     case 'moveMod':
     case 'wheelMod':
       return t(`explain.effect.${e.kind}${e.delta >= 0 ? 'Up' : 'Down'}`, {

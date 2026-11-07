@@ -1,6 +1,7 @@
-// Validator for rules and own effects (SPEC 5.6, 5.7): types, context values per trigger,
-// limits (SPEC 6), "rules are the same for everyone" and the settings of the running game.
-import { EFFECT_LIMITS as EL, RULE_LIMITS as L } from '../engine/limits';
+// Validator for rules, own effects and Profi-Code (SPEC 5.6–5.8): types, context values
+// per trigger, limits (SPEC 6), "rules are the same for everyone" and the settings of the
+// running game (e.g. "Profi-Code erlaubt").
+import { CODE_LIMITS as CL, EFFECT_LIMITS as EL, RULE_LIMITS as L } from '../engine/limits';
 import { DEFAULT_SETTINGS } from '../engine/settings';
 import type { NpcType, Settings, TileType } from '../engine/types';
 import type {
@@ -8,6 +9,8 @@ import type {
   EffectDef,
   Expr,
   FigureRef,
+  FunctionDef,
+  NpcCode,
   ParamType,
   RuleAST,
   Stmt,
@@ -17,6 +20,7 @@ import type {
   ValueType,
 } from './ast';
 import { hasAnchor, TRIGGER_CONTEXT, type TriggerContext } from './context';
+import { QUERY_W, lookup } from './keywords';
 
 export interface ValidationError {
   /** i18n key suffix: validation.<code> */
@@ -24,9 +28,18 @@ export interface ValidationError {
   /** Location, e.g. "effects.1", "conditions.0" or "body.2.then.0" */
   path: string;
   params?: Record<string, string | number>;
+  /** Source line, if the statement came from code text. */
+  line?: number;
 }
 
-export const TILE_TYPES: readonly TileType[] = ['normal', 'lava', 'eis', 'heilquelle', 'falle'];
+export const TILE_TYPES: readonly TileType[] = [
+  'normal',
+  'lava',
+  'eis',
+  'heilquelle',
+  'falle',
+  'wasser',
+];
 
 /** Identity properties are never readable (SPEC 6.1, CLAUDE.md rule 5). */
 const FORBIDDEN_VARS = new Set([
@@ -73,6 +86,7 @@ const QUERY_SIG: Record<string, { args: ValueType[]; result: ValueType; random?:
   distance: { args: ['tile', 'tile'], result: 'number' },
   randomNumber: { args: ['number', 'number'], result: 'number', random: true },
   count: { args: ['figureSet'], result: 'number' },
+  edgeTiles: { args: [], result: 'tileSet' },
 };
 
 const FIGURE_PROPS: Record<string, T> = {
@@ -91,12 +105,54 @@ interface Env {
   settings: Settings;
   npcTypes: readonly NpcType[];
   effects: readonly EffectDef[];
-  scope: Map<string, ValueType>;
+  functions: readonly FunctionDef[];
+  scope: Map<string, T>;
   errors: ValidationError[];
+  /** NPC "…" ZUG: `selbst` is available. */
+  self: boolean;
+  /** Inside FUNKTION: no world changes, GIB ZURÜCK allowed. */
+  pure: boolean;
+  /** Line of the statement being checked (code text only). */
+  line: number | undefined;
+  /** A Profi-Code construct was used (SPEC 5.8). */
+  pro: boolean;
+}
+
+function newEnv(
+  ctx: TriggerContext,
+  settings: Settings,
+  npcTypes: readonly NpcType[],
+  effects: readonly EffectDef[],
+  functions: readonly FunctionDef[],
+  extra: Partial<Env> = {},
+): Env {
+  return {
+    ctx,
+    inEffect: false,
+    settings,
+    npcTypes,
+    effects,
+    functions,
+    scope: new Map(),
+    errors: [],
+    self: false,
+    pure: false,
+    line: undefined,
+    pro: false,
+    ...extra,
+  };
 }
 
 function err(env: Env, code: string, path: string, params?: ValidationError['params']): void {
-  env.errors.push(params ? { code, path, params } : { code, path });
+  const e: ValidationError = params ? { code, path, params } : { code, path };
+  if (env.line !== undefined) e.line = env.line;
+  env.errors.push(e);
+}
+
+/** Marks a Profi-Code construct; rejected when the game does not allow Profi-Code. */
+function pro(env: Env, path: string): void {
+  if (!env.pro && !env.settings.rules.proCodeAllowed) err(env, 'proCodeDisabled', path);
+  env.pro = true;
 }
 
 function checkFigureRef(env: Env, ref: FigureRef, path: string): void {
@@ -128,8 +184,9 @@ export function assignable(actual: T, expected: ValueType): boolean {
   if (actual === 'unknown') return true;
   if (actual === expected) return true;
   if (actual === 'none') return expected === 'figure' || expected === 'tile';
-  if (expected === 'figureSet') return actual === 'figure';
-  if (expected === 'tileSet') return actual === 'tile';
+  // Lists (Profi-Code) may hold figures or tiles; the runtime picks what fits.
+  if (expected === 'figureSet') return actual === 'figure' || actual === 'list';
+  if (expected === 'tileSet') return actual === 'tile' || actual === 'list' || actual === 'figure';
   if (
     expected === 'text' ||
     expected === 'npcType' ||
@@ -220,13 +277,39 @@ function exprType(env: Env, e: Expr, path: string): T {
         err(env, 'unknownVariable', path, { value: e.name });
         return 'unknown';
       }
-      if (t === 'figure') {
-        if (FIGURE_PROPS[e.prop]) return FIGURE_PROPS[e.prop] as T;
-        checkVarName(env, e.prop, path);
-        return 'number';
+      return propType(env, t, e.prop, `${e.name}.${e.prop}`, path);
+    }
+    case 'prop':
+      pro(env, path);
+      return propType(env, exprType(env, e.of, `${path}.of`), e.prop, e.prop, path);
+    case 'self':
+      pro(env, path);
+      if (!env.self) err(env, 'selfOutsideNpc', path);
+      return 'figure';
+    case 'arith': {
+      pro(env, path);
+      const lt = exprType(env, e.left, `${path}.left`);
+      const rt = exprType(env, e.right, `${path}.right`);
+      if (e.op === '+' && (lt === 'text' || rt === 'text')) return 'text';
+      const numeric = (t: T) => t === 'number' || t === 'unknown';
+      if (!numeric(lt) || !numeric(rt)) err(env, 'typeMismatch', path);
+      return lt === 'unknown' || rt === 'unknown' ? 'unknown' : 'number';
+    }
+    case 'list':
+      pro(env, path);
+      if (e.items.length > EL.maxListLength) {
+        err(env, 'listTooLong', path, { max: EL.maxListLength });
       }
-      if (t === 'tile' && TILE_PROPS[e.prop]) return TILE_PROPS[e.prop] as T;
-      err(env, 'unknownProperty', path, { value: `${e.name}.${e.prop}` });
+      e.items.forEach((item, i) => exprType(env, item, `${path}.${i}`));
+      return 'list';
+    case 'fcall': {
+      pro(env, path);
+      const def = env.functions.find((f) => f.name.toLowerCase() === e.name.toLowerCase());
+      if (!def) err(env, 'unknownFunction', path, { value: e.name });
+      else if (def.params.length !== e.args.length) {
+        err(env, 'argCount', path, { expected: def.params.length });
+      }
+      e.args.forEach((a, i) => exprType(env, a, `${path}.args.${i}`));
       return 'unknown';
     }
     case 'query': {
@@ -245,7 +328,8 @@ function exprType(env: Env, e: Expr, path: string): T {
         if (!expected) return;
         // count() accepts any set; tile arguments also accept figures (their tile).
         const ok =
-          (e.name === 'count' && (assignable(at, 'figureSet') || assignable(at, 'tileSet'))) ||
+          (e.name === 'count' &&
+            (assignable(at, 'figureSet') || assignable(at, 'tileSet') || at === 'list')) ||
           (expected === 'tile' && at === 'figure') ||
           assignable(at, expected);
         if (!ok) err(env, 'typeMismatch', `${path}.args.${i}`);
@@ -268,7 +352,26 @@ function exprType(env: Env, e: Expr, path: string): T {
 }
 
 function expectBool(env: Env, e: Expr, path: string): void {
-  if (exprType(env, e, path) !== 'bool') err(env, 'notACondition', path);
+  const t = exprType(env, e, path);
+  if (t !== 'bool' && t !== 'unknown') err(env, 'notACondition', path);
+}
+
+/** Type of `value.prop` for a value of type `t`. */
+function propType(env: Env, t: T, prop: string, shown: string, path: string): T {
+  if (t === 'unknown') {
+    if (FORBIDDEN_VARS.has(prop.toLowerCase()))
+      err(env, 'forbiddenProperty', path, { value: prop });
+    return 'unknown';
+  }
+  if (t === 'figure' || t === 'none') {
+    if (FIGURE_PROPS[prop]) return FIGURE_PROPS[prop] as T;
+    checkVarName(env, prop, path);
+    return 'number';
+  }
+  if (t === 'tile' && TILE_PROPS[prop]) return TILE_PROPS[prop] as T;
+  if ((t === 'list' || t === 'figureSet' || t === 'tileSet') && prop === 'length') return 'number';
+  err(env, 'unknownProperty', path, { value: shown });
+  return 'unknown';
 }
 
 function checkTarget(env: Env, t: Target, path: string): void {
@@ -376,6 +479,10 @@ function checkEffect(env: Env, e: Effect, path: string): void {
       inRange(env, e.rounds, L.statusRounds, 'roundsRange', path);
       break;
     case 'teleport':
+      if (e.near) {
+        pro(env, path);
+        checkTileTarget(env, e.near, path);
+      }
       randomForbidden(env, path);
       checkTarget(env, e.target, path);
       break;
@@ -396,7 +503,9 @@ function checkEffect(env: Env, e: Effect, path: string): void {
     case 'setVar':
       checkVarName(env, e.name, path);
       if (e.scope.kind === 'figures') checkTarget(env, e.scope.target, path);
-      if (exprType(env, e.value, `${path}.value`) !== 'number') err(env, 'typeMismatch', path);
+      if (!['number', 'unknown'].includes(exprType(env, e.value, `${path}.value`))) {
+        err(env, 'typeMismatch', path);
+      }
       break;
     case 'message':
       if (e.text.trim().length === 0) err(env, 'messageEmpty', path);
@@ -404,10 +513,17 @@ function checkEffect(env: Env, e: Effect, path: string): void {
         err(env, 'messageTooLong', path, { max: L.maxMessageLength });
       }
       break;
+    case 'code':
+      pro(env, path);
+      checkStmt(env, e.stmt, path);
+      break;
     case 'call': {
       const def = findEffect(env, e.effect);
       if (!def) {
-        err(env, 'unknownEffect', path, { value: e.effect });
+        const isFunction = env.functions.some(
+          (f) => f.name.toLowerCase() === e.effect.toLowerCase(),
+        );
+        err(env, isFunction ? 'functionNotEffect' : 'unknownEffect', path, { value: e.effect });
         e.args.forEach((a, i) => exprType(env, a, `${path}.args.${i}`));
         break;
       }
@@ -432,16 +548,13 @@ export function validateRule(
   settings: Settings,
   npcTypes: readonly NpcType[],
   effects: readonly EffectDef[] = [],
+  functions: readonly FunctionDef[] = [],
 ): ValidationError[] {
-  const env: Env = {
-    ctx: TRIGGER_CONTEXT[rule.trigger.kind],
-    inEffect: false,
-    settings,
-    npcTypes,
-    effects,
-    scope: new Map(),
-    errors: [],
-  };
+  const env = newEnv(TRIGGER_CONTEXT[rule.trigger.kind], settings, npcTypes, effects, functions);
+  if (rule.trigger.kind === 'custom') {
+    pro(env, 'trigger');
+    checkEventName(env, rule.trigger.event, 'trigger');
+  }
   const name = rule.name.trim();
   if (name.length === 0) err(env, 'nameMissing', 'name');
   if (name.length > L.maxNameLength) err(env, 'nameTooLong', 'name', { max: L.maxNameLength });
@@ -482,10 +595,44 @@ function countStmts(stmts: Stmt[], depth: number, stats: { count: number; nestin
     if (s.kind === 'if') {
       countStmts(s.then, depth + 1, stats);
       countStmts(s.else, depth + 1, stats);
-    } else if (s.kind === 'repeat' || s.kind === 'forEach') {
+    } else if (
+      s.kind === 'repeat' ||
+      s.kind === 'forEach' ||
+      s.kind === 'while' ||
+      s.kind === 'after'
+    ) {
       countStmts(s.body, depth + 1, stats);
     }
   }
+}
+
+const EVENT_NAME = /^[a-z0-9_äöüß]+$/;
+
+function checkEventName(env: Env, name: string, path: string): void {
+  if (!EVENT_NAME.test(name) || name.length > CL.maxEventName) {
+    err(env, 'eventName', path, { max: CL.maxEventName });
+  }
+}
+
+/** Statements that change the world (not allowed in functions). */
+const WORLD_STMTS = new Set<Stmt['kind']>([
+  'do',
+  'play',
+  'texture',
+  'wait',
+  'send',
+  'after',
+  'say',
+]);
+
+/** Checks size and nesting of a body; Profi-Code may be larger than block effects. */
+function checkSize(env: Env, body: Stmt[], path: string, code: boolean): void {
+  const stats = { count: 0, nesting: 0 };
+  countStmts(body, 1, stats);
+  const maxStmts = code ? CL.maxStmts : EL.maxStmts;
+  const maxNesting = code ? CL.maxNesting : EL.maxNesting;
+  if (stats.count > maxStmts) err(env, 'tooManySteps', path, { max: maxStmts });
+  if (stats.nesting > maxNesting) err(env, 'tooDeep', path, { max: maxNesting });
 }
 
 function checkStmts(env: Env, stmts: Stmt[], path: string): void {
@@ -494,15 +641,36 @@ function checkStmts(env: Env, stmts: Stmt[], path: string): void {
 
 function declare(env: Env, name: string, type: T, path: string): void {
   checkVarName(env, name, path);
-  if (type === 'unknown' || type === 'none' || type === 'bool') {
-    if (type === 'bool') err(env, 'typeMismatch', path);
-    env.scope.set(name.toLowerCase(), type === 'none' ? 'figure' : 'number');
+  if (type === 'none') {
+    env.scope.set(name.toLowerCase(), 'figure');
     return;
   }
-  env.scope.set(name.toLowerCase(), type);
+  if (type === 'bool' && !env.pro) {
+    // Block effects have no boolean variables; Profi-Code may store conditions.
+    err(env, 'typeMismatch', path);
+    env.scope.set(name.toLowerCase(), 'number');
+    return;
+  }
+  // A variable that already had another type keeps working with any value.
+  const before = env.scope.get(name.toLowerCase());
+  env.scope.set(name.toLowerCase(), before && before !== type ? 'unknown' : type);
 }
 
 function checkStmt(env: Env, s: Stmt, path: string): void {
+  const outer = env.line;
+  if (s.line !== undefined) env.line = s.line;
+  try {
+    checkStmtInner(env, s, path);
+  } finally {
+    env.line = outer;
+  }
+}
+
+function checkStmtInner(env: Env, s: Stmt, path: string): void {
+  if (env.pure && WORLD_STMTS.has(s.kind)) {
+    err(env, 'worldChangeInFunction', path);
+    return;
+  }
   switch (s.kind) {
     case 'do':
       checkEffect(env, s.effect, path);
@@ -517,7 +685,9 @@ function checkStmt(env: Env, s: Stmt, path: string): void {
       break;
     }
     case 'repeat': {
-      if (exprType(env, s.times, `${path}.times`) !== 'number') err(env, 'typeMismatch', path);
+      if (!['number', 'unknown'].includes(exprType(env, s.times, `${path}.times`))) {
+        err(env, 'typeMismatch', path);
+      }
       if (s.times.kind === 'num') {
         inRange(env, s.times.value, { min: 1, max: EL.maxRepeat }, 'repeatRange', path);
       }
@@ -526,7 +696,7 @@ function checkStmt(env: Env, s: Stmt, path: string): void {
     }
     case 'forEach': {
       const t = exprType(env, s.in, `${path}.in`);
-      const element = t === 'unknown' ? 'unknown' : ELEMENT[t as ValueType];
+      const element = t === 'unknown' || t === 'list' ? 'unknown' : ELEMENT[t as ValueType];
       if (!element) err(env, 'notASet', path);
       const saved = new Map(env.scope);
       declare(env, s.var, element ?? 'unknown', path);
@@ -537,7 +707,7 @@ function checkStmt(env: Env, s: Stmt, path: string): void {
     case 'pick': {
       randomForbidden(env, path);
       const t = exprType(env, s.from, `${path}.from`);
-      const element = t === 'unknown' ? 'unknown' : ELEMENT[t as ValueType];
+      const element = t === 'unknown' || t === 'list' ? 'unknown' : ELEMENT[t as ValueType];
       if (!element) err(env, 'notASet', path);
       declare(env, s.var, element ?? 'unknown', path);
       break;
@@ -557,6 +727,45 @@ function checkStmt(env: Env, s: Stmt, path: string): void {
         err(env, 'waitRange', path, { max: EL.maxWait });
       }
       break;
+    case 'while': {
+      pro(env, path);
+      expectBool(env, s.cond, `${path}.cond`);
+      const saved = new Map(env.scope);
+      checkStmts(env, s.body, `${path}.body`);
+      env.scope = saved;
+      break;
+    }
+    case 'return':
+      pro(env, path);
+      if (!env.pure) err(env, 'returnOutsideFunction', path);
+      exprType(env, s.value, `${path}.value`);
+      break;
+    case 'send':
+      pro(env, path);
+      checkEventName(env, s.event, path);
+      break;
+    case 'after': {
+      pro(env, path);
+      inRange(env, s.rounds, CL.delayRounds, 'delayRange', path);
+      const saved = new Map(env.scope);
+      checkStmts(env, s.body, `${path}.body`);
+      env.scope = saved;
+      break;
+    }
+    case 'listAdd': {
+      pro(env, path);
+      const t = env.scope.get(s.list.toLowerCase());
+      if (!t) err(env, 'unknownVariable', path, { value: s.list });
+      else if (t !== 'list' && t !== 'unknown') err(env, 'notAList', path, { value: s.list });
+      exprType(env, s.value, `${path}.value`);
+      break;
+    }
+    case 'say': {
+      pro(env, path);
+      const t = exprType(env, s.text, `${path}.text`);
+      if (t !== 'text' && t !== 'number' && t !== 'unknown') err(env, 'typeMismatch', path);
+      break;
+    }
   }
 }
 
@@ -578,16 +787,9 @@ export function validateEffect(
   settings: Settings,
   npcTypes: readonly NpcType[],
   effects: readonly EffectDef[],
+  functions: readonly FunctionDef[] = [],
 ): ValidationError[] {
-  const env: Env = {
-    ctx: EFFECT_CONTEXT,
-    inEffect: true,
-    settings,
-    npcTypes,
-    effects,
-    scope: new Map(),
-    errors: [],
-  };
+  const env = newEnv(EFFECT_CONTEXT, settings, npcTypes, effects, functions, { inEffect: true });
   if (!EFFECT_NAME.test(def.name) || def.name.length > 30) err(env, 'effectName', 'name');
   if ([...def.symbol].length > 2) err(env, 'symbolTooLong', 'symbol');
   if (def.params.length > EL.maxParams) err(env, 'tooManyParams', 'params', { max: EL.maxParams });
@@ -601,25 +803,82 @@ export function validateEffect(
     env.scope.set(n, p.type);
   });
   if (def.body.length === 0) err(env, 'emptyBody', 'body');
-  const stats = { count: 0, nesting: 0 };
-  countStmts(def.body, 1, stats);
-  if (stats.count > EL.maxStmts) err(env, 'tooManySteps', 'body', { max: EL.maxStmts });
-  if (stats.nesting > EL.maxNesting) err(env, 'tooDeep', 'body', { max: EL.maxNesting });
+  checkStmts(env, def.body, 'body');
+  checkSize(env, def.body, 'body', env.pro);
+  return env.errors;
+}
+
+const NO_CONTEXT: TriggerContext = {
+  figures: [],
+  eventTile: false,
+  fromTile: false,
+  amount: false,
+};
+
+/** Validates an own function: computes a value, never changes the world (SPEC 5.8). */
+export function validateFunction(
+  def: FunctionDef,
+  settings: Settings,
+  functions: readonly FunctionDef[],
+): ValidationError[] {
+  const env = newEnv(NO_CONTEXT, settings, [], [], functions, { pure: true });
+  pro(env, 'name');
+  if (!EFFECT_NAME.test(def.name) || def.name.length > 30) err(env, 'effectName', 'name');
+  // Names of queries (anzahl, entfernung …) stay queries.
+  if (lookup(QUERY_W, def.name)) err(env, 'effectName', 'name');
+  if (def.params.length > EL.maxParams) err(env, 'tooManyParams', 'params', { max: EL.maxParams });
+  const seen = new Set<string>();
+  def.params.forEach((p, i) => {
+    const n = p.toLowerCase();
+    if (seen.has(n)) err(env, 'duplicateParam', `params.${i}`, { value: p });
+    seen.add(n);
+    checkVarName(env, p, `params.${i}`);
+    env.scope.set(n, 'unknown');
+  });
+  if (def.body.length === 0) err(env, 'emptyBody', 'body');
+  checkSize(env, def.body, 'body', true);
   checkStmts(env, def.body, 'body');
   return env.errors;
 }
 
+/** Finds the NPC type an NPC "…" ZUG block belongs to (by id or name). */
+export function npcTypeFor(code: NpcCode, npcTypes: readonly NpcType[]): NpcType | undefined {
+  const n = code.npc.toLowerCase();
+  return npcTypes.find((t) => t.id === n || t.name.toLowerCase() === n);
+}
+
+/** Validates NPC "…" ZUG: own behavior of an NPC type (SPEC 5.8). */
+export function validateNpcCode(
+  code: NpcCode,
+  settings: Settings,
+  npcTypes: readonly NpcType[],
+  effects: readonly EffectDef[],
+  functions: readonly FunctionDef[],
+): ValidationError[] {
+  const ctx: TriggerContext = { figures: [], eventTile: true, fromTile: false, amount: false };
+  const env = newEnv(ctx, settings, npcTypes, effects, functions, { self: true, inEffect: true });
+  pro(env, 'npc');
+  if (!npcTypeFor(code, npcTypes)) err(env, 'unknownNpcType', 'npc', { value: code.npc });
+  if (code.body.length === 0) err(env, 'emptyBody', 'body');
+  checkSize(env, code.body, 'body', true);
+  checkStmts(env, code.body, 'body');
+  return env.errors;
+}
+
+/** Does an effect body use Profi-Code (shown as a grey code block in the block view)? */
+export function usesProCode(def: EffectDef): boolean {
+  const env = newEnv(EFFECT_CONTEXT, DEFAULT_SETTINGS, [], [], [], { inEffect: true });
+  def.params.forEach((p) => env.scope.set(p.name.toLowerCase(), p.type));
+  checkStmts(env, def.body, 'body');
+  return env.pro;
+}
+
 /** Type of an expression inside an effect body (for the block editor). */
 export function inferType(e: Expr, scope: ReadonlyMap<string, ValueType>): T {
-  const env: Env = {
-    ctx: EFFECT_CONTEXT,
+  const env = newEnv(EFFECT_CONTEXT, DEFAULT_SETTINGS, [], [], [], {
     inEffect: true,
-    settings: DEFAULT_SETTINGS,
-    npcTypes: [],
-    effects: [],
     scope: new Map(scope),
-    errors: [],
-  };
+  });
   return exprType(env, e, '');
 }
 

@@ -34,6 +34,61 @@ export const KW = {
   nextTo: { de: 'NEBEN', en: 'NEXT_TO' },
   randomly: { de: 'ZUFÄLLIG', en: 'RANDOMLY' },
   chance: { de: 'ZUFALL', en: 'CHANCE' },
+  /** WENN EREIGNIS "name" */
+  event: { de: 'EREIGNIS', en: 'EVENT' },
+} satisfies Record<string, Word>;
+
+/** Definitions of a code text (SPEC 5.7, 5.8). */
+export const DEF_KW = {
+  effect: { de: 'EFFEKT', en: 'EFFECT' },
+  function: { de: 'FUNKTION', en: 'FUNCTION' },
+  npc: { de: 'NPC', en: 'NPC' },
+} satisfies Record<string, Word>;
+
+/** A keyword of one or more words; `alt` holds further accepted spellings. */
+export interface Phrase extends Word {
+  alt?: readonly string[];
+}
+
+/** Statements of effect bodies and Profi-Code (SPEC 5.7, 5.8). */
+export const STMT_KW = {
+  repeat: { de: 'WIEDERHOLE', en: 'REPEAT' },
+  times: { de: 'MAL', en: 'TIMES' },
+  forEach: { de: 'FÜR JEDE', en: 'FOR EACH', alt: ['FÜR JEDES', 'FÜR JEDEN'] },
+  in: { de: 'IN', en: 'IN' },
+  pick: { de: 'WÄHLE ZUFÄLLIG', en: 'PICK RANDOM' },
+  from: { de: 'AUS', en: 'FROM' },
+  let: { de: 'MERKE', en: 'LET' },
+  play: { de: 'SPIELE', en: 'PLAY' },
+  texture: { de: 'TEXTUR', en: 'TEXTURE' },
+  wait: { de: 'WARTE', en: 'WAIT' },
+  while: { de: 'SOLANGE', en: 'WHILE' },
+  return: { de: 'GIB ZURÜCK', en: 'RETURN' },
+  send: { de: 'SENDE', en: 'SEND' },
+  after: { de: 'NACH', en: 'AFTER' },
+  end: { de: 'ENDE', en: 'END' },
+} satisfies Record<string, Phrase>;
+
+/** selbst: the NPC whose turn it is. */
+export const SELF_W: Word = { de: 'selbst', en: 'self' };
+
+/** Methods and properties of lists. */
+export const LIST_W = {
+  add: { de: 'füge_hinzu', en: 'add' },
+  length: { de: 'länge', en: 'length' },
+} satisfies Record<string, Word>;
+
+/** Parameter types in EFFEKT "Name" (stärke: Zahl). */
+export const PARAM_TYPE_W = {
+  number: { de: 'Zahl', en: 'Number' },
+  text: { de: 'Text', en: 'Text' },
+  figure: { de: 'Figur', en: 'Figure' },
+  tile: { de: 'Feld', en: 'Tile' },
+  figureSet: { de: 'Figuren', en: 'Figures' },
+  tileSet: { de: 'Felder', en: 'Tiles' },
+  npcType: { de: 'NPC_Typ', en: 'NPC_Type' },
+  texture: { de: 'Textur', en: 'Texture' },
+  sound: { de: 'Sound', en: 'Sound' },
 } satisfies Record<string, Word>;
 
 export const EVENT_KW = {
@@ -131,6 +186,7 @@ export const QUERY_W = {
   distance: { de: 'entfernung', en: 'distance' },
   randomNumber: { de: 'zufallszahl', en: 'random_number' },
   count: { de: 'anzahl', en: 'count' },
+  edgeTiles: { de: 'felder_am_rand', en: 'edge_tiles' },
 } satisfies Record<string, Word>;
 
 /** KEINE */
@@ -143,6 +199,7 @@ export const TILE_TYPE_W: Record<TileType, Word> = {
   eis: { de: 'eis', en: 'ice' },
   heilquelle: { de: 'heilquelle', en: 'spring' },
   falle: { de: 'falle', en: 'trap' },
+  wasser: { de: 'wasser', en: 'water' },
 };
 
 /** Folds case and umlauts so that ZUFÄLLIG, zufaellig and Zufällig match. */

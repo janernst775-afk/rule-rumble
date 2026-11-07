@@ -419,7 +419,8 @@ function defaultStepEffect(kind: EffectKind, scope: Scope): Effect {
         value: { kind: 'num', value: 1 },
       };
     case 'message':
-      return { kind, text: 'Achtung!' };
+    case 'code':
+      return { kind: 'message', text: 'Achtung!' };
     case 'call':
       return { kind, effect: '', args: [] };
   }
@@ -741,6 +742,19 @@ function defaultStmt(choice: StepChoice, scope: Scope, ctx: Ctx): Stmt {
       };
     case 'wait':
       return { kind: 'wait', seconds: 0.5 };
+    // Profi-Code statements come from the code view only.
+    case 'while':
+      return { kind: 'while', cond: { kind: 'chance', percent: 50 }, body: [] };
+    case 'return':
+      return { kind: 'return', value: { kind: 'none' } };
+    case 'send':
+      return { kind: 'send', event: 'signal' };
+    case 'after':
+      return { kind: 'after', rounds: 1, body: [] };
+    case 'listAdd':
+      return { kind: 'listAdd', list: 'liste', value: { kind: 'num', value: 1 } };
+    case 'say':
+      return { kind: 'say', text: { kind: 'str', value: 'Achtung!' } };
   }
 }
 

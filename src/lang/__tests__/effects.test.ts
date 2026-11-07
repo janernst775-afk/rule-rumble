@@ -350,7 +350,7 @@ describe('interpreter (SPEC 5.7 / 5.8)', () => {
     expect(r.state.world.n).toBe(3);
     expect(
       Object.values(r.state.tiles).some(
-        (t) => t.textureId && r.state.textureNames[t.textureId] === 'sumpf',
+        (t) => t.textureId && r.state.textureNames[t.textureId] === 'Sumpf',
       ),
     ).toBe(true);
     expect(r.events.some((e) => e.type === 'soundPlayed')).toBe(true);

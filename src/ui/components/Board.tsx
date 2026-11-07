@@ -452,6 +452,7 @@ const TYPE_ICON: Record<Exclude<TileType, 'normal'>, { color: string; path: stri
   eis: { color: '#4FB6F0', path: 'M0 -6v12M-5 -3l10 6M-5 3l10 -6' },
   heilquelle: { color: '#2FA866', path: 'M-2 -6h4v4h4v4h-4v4h-4v-4h-4v-4h4z' },
   falle: { color: '#8A5A2B', path: 'M0 -6l6 11h-12zM0 -2v3M0 3v0.5' },
+  wasser: { color: '#2B7BD8', path: 'M-6 -1q3 -3 6 0t6 0M-6 4q3 -3 6 0t6 0' },
 };
 
 /** Small symbol in the tile corner so rule tile types stay readable over textures (SPEC 4.1). */
@@ -462,9 +463,9 @@ function TileTypeBadge({ type }: { type: Exclude<TileType, 'normal'> }) {
       <circle r={10} fill="#fff" stroke={icon.color} strokeWidth={2.5} />
       <path
         d={icon.path}
-        fill={type === 'eis' || type === 'falle' ? 'none' : icon.color}
+        fill={type === 'eis' || type === 'falle' || type === 'wasser' ? 'none' : icon.color}
         stroke={icon.color}
-        strokeWidth={type === 'eis' || type === 'falle' ? 2 : 0}
+        strokeWidth={type === 'eis' || type === 'falle' || type === 'wasser' ? 2 : 0}
         strokeLinecap="round"
         strokeLinejoin="round"
       />

@@ -1,4 +1,4 @@
-// NPC turns (SPEC 3): move like a figure, then attack if possible. NPCs are hostile to
+// NPC turns (SPEC 3): move like a figure (or run own code, SPEC 5.8), then attack if possible. NPCs are hostile to
 // every hero and the boss, but not to other NPCs. Fully deterministic via the game RNG.
 import { manhattan, reachableTiles, samePos, tileKey } from './board';
 import type { Bus } from './bus';
@@ -6,6 +6,7 @@ import { resolveAttack } from './combat';
 import { walkPath } from './movement';
 import { effectiveMove } from './query';
 import { randomPick } from './rng';
+import { runNpcCode } from '../lang/runtime';
 import { endTurn } from './turn';
 import type { Figure, NpcType, Pos } from './types';
 
@@ -59,7 +60,9 @@ function choosePath(bus: Bus, npc: Figure, type: NpcType | undefined): Pos[] {
 export function npcTurn(bus: Bus, npc: Figure): void {
   const state = bus.state;
   const type = state.npcTypes.find((t) => t.id === npc.npcTypeId);
-  walkPath(bus, npc.id, choosePath(bus, npc, type));
+  // Own behavior from Profi-Code replaces the movement template; the attack stays.
+  if (type?.code && type.code.length > 0) runNpcCode(bus, npc, type);
+  else walkPath(bus, npc.id, choosePath(bus, npc, type));
   if (state.status !== 'playing') return;
   if (npc.alive) {
     const here = preys(bus, npc).filter((f) => samePos(f.pos, npc.pos));

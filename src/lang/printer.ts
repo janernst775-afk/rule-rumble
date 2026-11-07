@@ -1,8 +1,26 @@
 // AST → normalized rule text in the player's language (SPEC 5.6, 5.8).
 // print(parse(text)) yields this normalized form (round-trip tests).
-import type { Effect, Expr, FigureRef, RuleAST, Target, TileTarget, Trigger } from './ast';
+import type {
+  Effect,
+  EffectDef,
+  Expr,
+  FigureRef,
+  FunctionDef,
+  NpcCode,
+  ProgramAST,
+  RuleAST,
+  Stmt,
+  Target,
+  TileTarget,
+  Trigger,
+} from './ast';
 import {
   ACTION_KW,
+  DEF_KW,
+  LIST_W,
+  PARAM_TYPE_W,
+  SELF_W,
+  STMT_KW,
   EVENT_KW,
   FIGURE_PROP_W,
   KW,
@@ -46,6 +64,8 @@ function printTrigger(t: Trigger, lang: CodeLang): string {
       return `${EVENT_KW.enters[lang]} ${(t.newOnly ? TILE_W.newTile : TILE_W.eventTile)[lang]}`;
     case 'leaves':
       return `${EVENT_KW.leaves[lang]} ${TILE_W.eventTile[lang]}`;
+    case 'custom':
+      return `${KW.event[lang]} ${quote(t.event)}`;
     default:
       return EVENT_KW[t.kind][lang];
   }
@@ -53,10 +73,50 @@ function printTrigger(t: Trigger, lang: CodeLang): string {
 
 /** Is this expression a tile-type lookup (so that strings print as bare tile types)? */
 function isTileType(e: Expr): boolean {
-  return e.kind === 'tileProp' && e.prop === 'type';
+  return (e.kind === 'tileProp' || e.kind === 'varProp' || e.kind === 'prop') && e.prop === 'type';
 }
 
-function printValue(e: Expr, lang: CodeLang, bareTileType: boolean): string {
+const PROP_WORDS: Record<string, { de: string; en: string }> = {
+  ...FIGURE_PROP_W,
+  ...TILE_PROP_W,
+  length: LIST_W.length,
+};
+
+function propWord(prop: string, lang: CodeLang): string {
+  return PROP_WORDS[prop]?.[lang] ?? prop;
+}
+
+const BARE_QUERIES = new Set(['allFigures', 'emptyTiles', 'allNpcs', 'edgeTiles']);
+
+/**
+ * Precedence of the code language: 0 ODER, 1 UND, 2 NICHT, 3 comparison, 4 + -, 5 * /,
+ * 6 atoms. Operands below `min` get parentheses.
+ */
+function prec(e: Expr): number {
+  switch (e.kind) {
+    case 'or':
+      return 0;
+    case 'and':
+      return 1;
+    case 'not':
+      return 2;
+    case 'cmp':
+      return 3;
+    case 'arith':
+      return e.op === '+' || e.op === '-' ? 4 : 5;
+    case 'num':
+      return e.value < 0 ? 4 : 6;
+    default:
+      return 6;
+  }
+}
+
+function printCode(e: Expr, lang: CodeLang, min: number, bareTileType = false): string {
+  const text = printBare(e, lang, bareTileType);
+  return prec(e) < min ? `(${text})` : text;
+}
+
+function printBare(e: Expr, lang: CodeLang, bareTileType: boolean): string {
   switch (e.kind) {
     case 'num':
       return String(e.value);
@@ -85,13 +145,20 @@ function printValue(e: Expr, lang: CodeLang, bareTileType: boolean): string {
       return NONE_W[lang];
     case 'var':
       return e.name;
-    case 'varProp': {
-      const fp = (FIGURE_PROP_W as Record<string, { de: string; en: string }>)[e.prop];
-      const tp = (TILE_PROP_W as Record<string, { de: string; en: string }>)[e.prop];
-      return `${e.name}.${(fp ?? tp)?.[lang] ?? e.prop}`;
-    }
+    case 'varProp':
+      return `${e.name}.${propWord(e.prop, lang)}`;
+    case 'prop':
+      return `${printCode(e.of, lang, 6)}.${propWord(e.prop, lang)}`;
+    case 'self':
+      return SELF_W[lang];
     case 'query':
-      return `${QUERY_W[e.name][lang]}(${e.args.map((a) => printValue(a, lang, false)).join(', ')})`;
+      return e.args.length === 0 && BARE_QUERIES.has(e.name)
+        ? QUERY_W[e.name][lang]
+        : `${QUERY_W[e.name][lang]}(${e.args.map((a) => printCode(a, lang, 0)).join(', ')})`;
+    case 'fcall':
+      return `${e.name}(${e.args.map((a) => printCode(a, lang, 0)).join(', ')})`;
+    case 'list':
+      return `[${e.items.map((a) => printCode(a, lang, 0)).join(', ')}]`;
     case 'figureRef':
       return refWord(e.ref, lang);
     case 'tileRef':
@@ -102,42 +169,36 @@ function printValue(e: Expr, lang: CodeLang, bareTileType: boolean): string {
       return printTarget(e.target, lang);
     case 'tiles':
       return printTile(e.target, lang);
-    default:
-      return printExpr(e, lang, 0);
-  }
-}
-
-/** Precedence: 0 = or, 1 = and, 2 = not / atom. */
-function printExpr(e: Expr, lang: CodeLang, parent: number): string {
-  switch (e.kind) {
     case 'chance':
       return `${KW.chance[lang]} ${e.percent}%`;
     case 'cmp': {
       const bare = isTileType(e.left) || isTileType(e.right);
-      return `${printValue(e.left, lang, bare)} ${e.op} ${printValue(e.right, lang, bare)}`;
+      return `${printCode(e.left, lang, 4, bare)} ${e.op} ${printCode(e.right, lang, 4, bare)}`;
+    }
+    case 'arith': {
+      const p = e.op === '+' || e.op === '-' ? 4 : 5;
+      return `${printCode(e.left, lang, p)} ${e.op} ${printCode(e.right, lang, p + 1)}`;
     }
     case 'not':
-      return `${KW.not[lang]} ${printExpr(e.item, lang, 2)}`;
-    case 'and': {
-      const text = e.items.map((i) => printExpr(i, lang, 1)).join(` ${KW.and[lang]} `);
-      return parent > 1 ? `(${text})` : text;
-    }
-    case 'or': {
-      const text = e.items.map((i) => printExpr(i, lang, 0)).join(` ${KW.or[lang]} `);
-      return parent > 0 ? `(${text})` : text;
-    }
-    default:
-      return printValue(e, lang, false);
+      return `${KW.not[lang]} ${printCode(e.item, lang, 3)}`;
+    case 'and':
+      return e.items.map((i) => printCode(i, lang, 2)).join(` ${KW.and[lang]} `);
+    case 'or':
+      return e.items.map((i) => printCode(i, lang, 1)).join(` ${KW.or[lang]} `);
   }
 }
 
+function printValue(e: Expr, lang: CodeLang, bareTileType: boolean): string {
+  return printCode(e, lang, 0, bareTileType);
+}
+
 function printTarget(t: Target, lang: CodeLang): string {
-  if (t.kind === 'value') return printValue(t.expr, lang, false);
+  if (t.kind === 'value') return printCode(t.expr, lang, 6);
   return t.kind === 'ref' ? refWord(t.ref, lang) : TARGET_W[t.kind][lang];
 }
 
 function printTile(t: TileTarget, lang: CodeLang): string {
-  if (t.kind === 'value') return printValue(t.expr, lang, false);
+  if (t.kind === 'value') return printCode(t.expr, lang, 6);
   if (t.kind === 'figureTile') return `${refWord(t.ref, lang)}.${FIGURE_PROP_W.tile[lang]}`;
   if (t.kind === 'tilesOfType')
     return `${TILE_W.tilesOfType[lang]} ${TILE_TYPE_W[t.tileType][lang]}`;
@@ -145,6 +206,7 @@ function printTile(t: TileTarget, lang: CodeLang): string {
 }
 
 export function printEffect(e: Effect, lang: CodeLang): string {
+  if (e.kind === 'code') return printStmts([e.stmt], lang, 0).join('\n');
   if (e.kind === 'call') {
     return `${e.effect}(${e.args.map((a) => printValue(a, lang, false)).join(', ')})`;
   }
@@ -163,7 +225,9 @@ export function printEffect(e: Effect, lang: CodeLang): string {
     case 'wheelMod':
       return `${kw} ${printTarget(e.target, lang)} ${signed(e.delta)}% ${KW.for[lang]} ${rounds(e.rounds, lang)}`;
     case 'teleport':
-      return `${kw} ${printTarget(e.target, lang)} ${KW.randomly[lang]}`;
+      return e.near
+        ? `${kw} ${printTarget(e.target, lang)} ${KW.nextTo[lang]} ${printTile(e.near, lang)}`
+        : `${kw} ${printTarget(e.target, lang)} ${KW.randomly[lang]}`;
     case 'push':
       return `${kw} ${printTarget(e.target, lang)} ${KW.awayFrom[lang]} ${printTile(e.from, lang)} ${e.distance}`;
     case 'setTileType':
@@ -174,7 +238,11 @@ export function printEffect(e: Effect, lang: CodeLang): string {
       return `${kw} ${KW.nextTo[lang]} ${printTile(e.at, lang)}`;
     case 'setVar': {
       const scope =
-        e.scope.kind === 'world' ? VALUE_W.world[lang] : printTarget(e.scope.target, lang);
+        e.scope.kind === 'world'
+          ? VALUE_W.world[lang]
+          : e.scope.target.kind === 'value'
+            ? printCode(e.scope.target.expr, lang, 6)
+            : printTarget(e.scope.target, lang);
       return `${kw} ${scope}.${e.name} ${e.op} ${printValue(e.value, lang, false)}`;
     }
     case 'message':
@@ -188,7 +256,7 @@ export function printExprText(e: Expr, lang: CodeLang): string {
 }
 
 export function printCondition(e: Expr, lang: CodeLang): string {
-  return printExpr(e, lang, 0);
+  return printCode(e, lang, 0);
 }
 
 export function printRule(rule: RuleAST, lang: CodeLang = 'de'): string {
@@ -209,4 +277,133 @@ export function printRule(rule: RuleAST, lang: CodeLang = 'de'): string {
 
 export function printRules(rules: RuleAST[], lang: CodeLang = 'de'): string {
   return rules.map((r) => printRule(r, lang)).join('\n\n');
+}
+
+// ---------- effect bodies and Profi-Code (SPEC 5.7, 5.8) ----------
+
+const INDENT = '  ';
+
+function block(head: string, body: Stmt[], lang: CodeLang, depth: number): string[] {
+  const pad = INDENT.repeat(depth);
+  return [`${pad}${head}`, ...printStmts(body, lang, depth + 1), `${pad}${STMT_KW.end[lang]}`];
+}
+
+/** Statements as indented code lines. */
+export function printStmts(stmts: Stmt[], lang: CodeLang, depth = 0): string[] {
+  const pad = INDENT.repeat(depth);
+  const out: string[] = [];
+  const x = (e: Expr) => printCode(e, lang, 0);
+  for (const s of stmts) {
+    switch (s.kind) {
+      case 'do':
+        out.push(`${pad}${printEffect(s.effect, lang)}`);
+        break;
+      case 'if':
+        out.push(`${pad}${KW.when[lang]} ${x(s.cond)}`);
+        out.push(...printStmts(s.then, lang, depth + 1));
+        if (s.else.length > 0) {
+          out.push(`${pad}${KW.else[lang]}`);
+          out.push(...printStmts(s.else, lang, depth + 1));
+        }
+        out.push(`${pad}${STMT_KW.end[lang]}`);
+        break;
+      case 'repeat':
+        out.push(
+          ...block(
+            `${STMT_KW.repeat[lang]} ${x(s.times)} ${STMT_KW.times[lang]}`,
+            s.body,
+            lang,
+            depth,
+          ),
+        );
+        break;
+      case 'forEach':
+        out.push(
+          ...block(
+            `${STMT_KW.forEach[lang]} ${s.var} ${STMT_KW.in[lang]} ${x(s.in)}`,
+            s.body,
+            lang,
+            depth,
+          ),
+        );
+        break;
+      case 'while':
+        out.push(...block(`${STMT_KW.while[lang]} ${x(s.cond)}`, s.body, lang, depth));
+        break;
+      case 'after':
+        out.push(...block(`${STMT_KW.after[lang]} ${rounds(s.rounds, lang)}`, s.body, lang, depth));
+        break;
+      case 'pick':
+        out.push(`${pad}${STMT_KW.pick[lang]} ${s.var} ${STMT_KW.from[lang]} ${x(s.from)}`);
+        break;
+      case 'let':
+        out.push(`${pad}${STMT_KW.let[lang]} ${s.name} = ${x(s.value)}`);
+        break;
+      case 'play':
+        out.push(`${pad}${STMT_KW.play[lang]} ${x(s.sound)}`);
+        break;
+      case 'texture':
+        out.push(`${pad}${STMT_KW.texture[lang]} ${printCode(s.tile, lang, 6)} ${x(s.name)}`);
+        break;
+      case 'wait':
+        out.push(`${pad}${STMT_KW.wait[lang]} ${s.seconds}`);
+        break;
+      case 'return':
+        out.push(`${pad}${STMT_KW.return[lang]} ${x(s.value)}`);
+        break;
+      case 'send':
+        out.push(`${pad}${STMT_KW.send[lang]} ${quote(s.event)}`);
+        break;
+      case 'listAdd':
+        out.push(`${pad}${s.list}.${LIST_W.add[lang]}(${x(s.value)})`);
+        break;
+      case 'say':
+        out.push(`${pad}${ACTION_KW.message[lang]} ${x(s.text)}`);
+        break;
+    }
+  }
+  return out;
+}
+
+/** A single statement as text (code blocks in the block view). */
+export function printStmtText(s: Stmt, lang: CodeLang): string {
+  return printStmts([s], lang, 0).join('\n');
+}
+
+export function printEffectDef(def: EffectDef, lang: CodeLang = 'de'): string {
+  const params =
+    def.params.length > 0
+      ? ` (${def.params.map((p) => `${p.name}: ${PARAM_TYPE_W[p.type][lang]}`).join(', ')})`
+      : '';
+  return [
+    `${DEF_KW.effect[lang]} ${quote(def.name)}${params}`,
+    ...printStmts(def.body, lang, 1),
+    STMT_KW.end[lang],
+  ].join('\n');
+}
+
+export function printFunction(def: FunctionDef, lang: CodeLang = 'de'): string {
+  return [
+    `${DEF_KW.function[lang]} ${def.name}(${def.params.join(', ')})`,
+    ...printStmts(def.body, lang, 1),
+    STMT_KW.end[lang],
+  ].join('\n');
+}
+
+export function printNpcCode(code: NpcCode, lang: CodeLang = 'de'): string {
+  return [
+    `${DEF_KW.npc[lang]} ${quote(code.npc)} ${KW.turn[lang]}`,
+    ...printStmts(code.body, lang, 1),
+    STMT_KW.end[lang],
+  ].join('\n');
+}
+
+/** A whole code text: functions, effects, NPC behaviors, then rules. */
+export function printProgram(p: ProgramAST, lang: CodeLang = 'de'): string {
+  return [
+    ...p.functions.map((f) => printFunction(f, lang)),
+    ...p.effects.map((e) => printEffectDef(e, lang)),
+    ...p.npcCode.map((n) => printNpcCode(n, lang)),
+    ...p.rules.map((r) => printRule(r, lang)),
+  ].join('\n\n');
 }

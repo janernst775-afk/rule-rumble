@@ -58,6 +58,7 @@ const CONTEXT_WORD: Record<string, string> = {
 function eventWord(rule: RuleAST): string {
   const t = rule.trigger;
   if (t.kind === 'everyNRounds') return `${KW.every.de} ${t.n} ${KW.rounds.de}`;
+  if (t.kind === 'custom') return `${KW.event.de} "${t.event}"`;
   return EVENT_KW[t.kind].de;
 }
 
