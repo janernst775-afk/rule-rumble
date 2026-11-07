@@ -14,7 +14,7 @@ import type {
   TriggerKind,
 } from '../../lang/ast';
 import { TRIGGER_CONTEXT } from '../../lang/context';
-import { printCondition, printExprText } from '../../lang/printer';
+import { printCondition, printExprText, printStmtText } from '../../lang/printer';
 import { CloseIcon, ChevronIcon } from '../components/Icons';
 import { TRIGGER_KINDS } from '../ruleText';
 import { targetLabel, tileLabel, valueLabel } from './labels';
@@ -206,7 +206,7 @@ export function TriggerFields({
       <Select<TriggerKind>
         label={t('editor.trigger.label')}
         value={trigger.kind}
-        options={TRIGGER_KINDS}
+        options={[...TRIGGER_KINDS, 'custom']}
         keyOf={(k) => k}
         labelOf={(k) => t(`editor.trigger.${k}`)}
         onChange={(k) => onChange(defaultTrigger(k))}
@@ -219,6 +219,16 @@ export function TriggerFields({
           keyOf={(v) => String(v)}
           labelOf={(v) => (v ? t('editor.trigger.newTile') : t('editor.trigger.anyTile'))}
           onChange={(newOnly) => onChange({ kind: 'enters', newOnly })}
+        />
+      )}
+      {trigger.kind === 'custom' && (
+        <TextField
+          label={t('editor.trigger.event')}
+          value={trigger.event}
+          maxLength={30}
+          onChange={(event) =>
+            onChange({ kind: 'custom', event: event.toLowerCase().replace(/\s+/g, '_') })
+          }
         />
       )}
       {trigger.kind === 'everyNRounds' && (
@@ -420,6 +430,13 @@ function EffectInputs({
   );
 
   switch (effect.kind) {
+    case 'code':
+      // Profi-Code in a rule: shown read-only, edited in the text view (SPEC 5.8).
+      return (
+        <pre className="code-snippet" title={t('editor.codeEffectHint')}>
+          {printStmtText(effect.stmt, 'de')}
+        </pre>
+      );
     case 'spawn':
       return (
         <>

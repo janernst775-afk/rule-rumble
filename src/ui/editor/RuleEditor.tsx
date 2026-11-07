@@ -23,7 +23,7 @@ import {
   type ConditionTemplate,
 } from './model';
 import { HighlightedRule, TextEditor } from './TextEditor';
-import { EffectWorkshop } from '../workshop/EffectWorkshop';
+import { LazyWorkshop } from '../workshop/LazyWorkshop';
 import { allNpcTypes, useWorkshop, withBundleFromWorkshop } from '../../store/workshopStore';
 import { mergeById, mergeByName, ruleCallFor } from './model';
 
@@ -81,6 +81,11 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
     [game, ownNpcs],
   );
   const effects = useMemo(() => mergeByName(game?.effects ?? [], ownEffects), [game, ownEffects]);
+  const ownFunctions = useWorkshop((s) => s.functions);
+  const functions = useMemo(
+    () => mergeByName(game?.functions ?? [], ownFunctions),
+    [game, ownFunctions],
+  );
   const [workshopOpen, setWorkshopOpen] = useState(false);
   const [ast, setAst] = useState<RuleAST>(() =>
     initial ? structuredClone(initial.ast) : emptyRule(t('editor.newRuleName')),
@@ -95,14 +100,18 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
 
   // Text view: the parsed text is the current rule while it is free of syntax errors.
   const textCheck = useMemo(
-    () => (view === 'text' ? checkRuleText(text, settings, npcTypes, effects) : null),
-    [view, text, settings, npcTypes, effects],
+    () => (view === 'text' ? checkRuleText(text, settings, npcTypes, effects, functions) : null),
+    [view, text, settings, npcTypes, effects, functions],
   );
   const current: RuleAST | null = view === 'blocks' ? ast : (textCheck?.rule?.ast ?? null);
   const diagnostics: Diagnostic[] = useMemo(() => {
     if (view === 'text') return textCheck?.diagnostics ?? [];
-    return validationDiagnostics(ast, BLOCK_LINES, validateRule(ast, settings, npcTypes, effects));
-  }, [view, textCheck, ast, settings, npcTypes, effects]);
+    return validationDiagnostics(
+      ast,
+      BLOCK_LINES,
+      validateRule(ast, settings, npcTypes, effects, functions),
+    );
+  }, [view, textCheck, ast, settings, npcTypes, effects, functions]);
   const valid = current !== null && diagnostics.length === 0;
 
   const message = (d: Diagnostic) => {
@@ -135,6 +144,7 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
       { id: own ? initial.id : newRuleId(), author: own ? initial.author : author, ast: current },
       effects,
       npcTypes,
+      functions,
     );
   };
 
@@ -611,7 +621,7 @@ export function RuleEditor({ initial, game, author, onClose, onSave, onPlay }: P
           </div>
         </aside>
       </div>
-      {workshopOpen && <EffectWorkshop onClose={() => setWorkshopOpen(false)} />}
+      {workshopOpen && <LazyWorkshop onClose={() => setWorkshopOpen(false)} />}
     </div>
   );
 }

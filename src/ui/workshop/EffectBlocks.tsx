@@ -13,7 +13,9 @@ import type {
   TileTarget,
   ValueType,
 } from '../../lang/ast';
+import { printStmtText } from '../../lang/printer';
 import { CloseIcon, ChevronIcon } from '../components/Icons';
+import { isCodeOnly } from './codeOnly';
 import { TILE_TYPES } from '../editor/model';
 import { EFFECT_KINDS } from '../ruleText';
 import { elementType, exprKey, exprOptions, QUERY_ARGS, scopesOf, type Want } from './exprOptions';
@@ -25,6 +27,37 @@ interface Ctx {
   effects: readonly EffectDef[];
   /** Name of the effect being edited (calls to itself are allowed, depth-limited). */
   self: string;
+  /** Opens the code view (for grey code blocks). */
+  onOpenCode?: () => void;
+}
+
+function CodeBlock({ stmt, ctx, onRemove }: { stmt: Stmt; ctx: Ctx; onRemove: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="stmt stmt-code">
+      <div className="stmt-head">
+        <span className="block-label">{t('workshop.codeBlock')}</span>
+        <button
+          type="button"
+          className="code-block-open"
+          title={t('workshop.codeBlockHint')}
+          onClick={ctx.onOpenCode}
+        >
+          <pre>{printStmtText(stmt, 'de')}</pre>
+        </button>
+        <div className="block-tools">
+          <button
+            type="button"
+            className="mini-icon"
+            aria-label={t('editor.remove')}
+            onClick={onRemove}
+          >
+            <CloseIcon size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ---------- expressions ----------
@@ -824,6 +857,7 @@ function StmtBlock({
   onDown?: (() => void) | undefined;
 }) {
   const { t } = useTranslation();
+  if (isCodeOnly(stmt)) return <CodeBlock stmt={stmt} ctx={ctx} onRemove={onRemove} />;
   const label =
     stmt.kind === 'do'
       ? stmt.effect.kind === 'call'

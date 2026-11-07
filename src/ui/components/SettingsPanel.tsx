@@ -39,7 +39,6 @@ interface Props {
 /** "Eigene Einstellungen" (SPEC 2.2). Values that only take effect later are shown but disabled. */
 export function SettingsPanel({ settings, onChange }: Props) {
   const { t } = useTranslation();
-  const v06 = t('common.fromVersion', { version: 'v0.6' });
 
   const update = (fn: (s: Settings) => void) => {
     const next = structuredClone(settings);
@@ -87,12 +86,11 @@ export function SettingsPanel({ settings, onChange }: Props) {
               onChange={(v) => update((x) => (x.rules.activationDelay = v))}
             />
           </SettingRow>
-          <SettingRow label={t('settings.proCode')} badge={v06} disabled>
+          <SettingRow label={t('settings.proCode')}>
             <Toggle
               label={t('settings.proCode')}
               checked={s.rules.proCodeAllowed}
               onChange={(v) => update((x) => (x.rules.proCodeAllowed = v))}
-              disabled
             />
           </SettingRow>
           <SettingRow label={t('settings.ruleDamage')}>

@@ -321,7 +321,8 @@
       "steps": "„{{rule}}“ abgebrochen: Rechenbudget erschöpft.",
       "depth": "„{{rule}}“ abgebrochen: zu tiefe Effekt-Aufrufe.",
       "list": "„{{rule}}“ abgebrochen: Liste zu lang."
-    }
+    },
+    "customEvent": "Ereignis „{{name}}“"
   },
   "toast": {
     "hit": "{{attacker}} trifft {{target}}!",
@@ -449,7 +450,8 @@
       "damage": "eine Figur Leben verliert",
       "dies": "eine Figur stirbt",
       "tileAdded": "ein Feld angelegt wird",
-      "tileRemoved": "ein Feld entfernt wird"
+      "tileRemoved": "ein Feld entfernt wird",
+      "custom": "Eigenes Ereignis"
     },
     "effects": {
       "spawn": "NPC erscheint",
@@ -466,7 +468,8 @@
       "wheelMod": "Rad-Chance ändern",
       "setVar": "Variable setzen",
       "message": "Nachricht",
-      "call": "Eigener Effekt"
+      "call": "Eigener Effekt",
+      "code": "Profi-Code"
     }
   },
   "startRules": {
@@ -502,10 +505,15 @@
     "copyFailed": "Kopieren nicht möglich – nutze „Als Datei speichern“.",
     "import": "Importieren",
     "importLabel": "Regeln als JSON-Text",
-    "importPlaceholder": "Exportierten JSON-Text hier einfügen …",
+    "importPlaceholder": "Exportierten JSON-Text oder ein Regel-Paket hier einfügen …",
     "importButton": "Importieren",
     "importFile": "Datei wählen",
-    "imported": "Importiert: {{added}} · abgelehnt: {{rejected}}"
+    "imported": "Importiert: {{added}} · abgelehnt: {{rejected}}",
+    "packageOne": "Als Paket speichern",
+    "packageAll": "Alles als Paket",
+    "packageHint": "Ein Regel-Paket enthält auch eigene Effekte, Funktionen, NPC-Typen und Texturen – ein ganzer Spielmodus in einer Datei.",
+    "packageImported": "Paket importiert: {{rules}} Regeln, {{effects}} Effekte, {{functions}} Funktionen, {{npcs}} NPC-Typen, {{textures}} Texturen · abgelehnt: {{rejected}}",
+    "importAuthor": "Import"
   },
   "validation": {
     "invalid": "Diese Regel ist ungültig.",
@@ -555,7 +563,17 @@
     "paramType": "Unbekannter Parametertyp.",
     "emptyBody": "Der Effekt braucht mindestens einen Schritt.",
     "tooManySteps": "Höchstens {{max}} Schritte.",
-    "tooDeep": "Höchstens {{max}} Ebenen tief."
+    "tooDeep": "Höchstens {{max}} Ebenen tief.",
+    "proCodeDisabled": "Profi-Code ist in diesem Spiel nicht erlaubt.",
+    "selfOutsideNpc": "„selbst“ gibt es nur im NPC-Zug.",
+    "unknownFunction": "Die Funktion „{{value}}“ gibt es nicht.",
+    "functionNotEffect": "„{{value}}“ ist eine Funktion – sie liefert einen Wert, z. B. MERKE x = {{value}}(…).",
+    "listTooLong": "Höchstens {{max}} Elemente in einer Liste.",
+    "worldChangeInFunction": "Funktionen dürfen die Welt nicht verändern.",
+    "returnOutsideFunction": "GIB ZURÜCK steht nur in Funktionen.",
+    "eventName": "Ereignisnamen bestehen aus Kleinbuchstaben, Ziffern und _ (höchstens {{max}}).",
+    "delayRange": "NACH geht von {{min}} bis {{max}} Runden.",
+    "notAList": "„{{value}}“ ist keine Liste."
   },
   "editor": {
     "up": "Nach oben",
@@ -597,7 +615,9 @@
       "which": "Welches Feld",
       "newTile": "neues Feld",
       "anyTile": "ein Feld",
-      "n": "Anzahl Runden"
+      "n": "Anzahl Runden",
+      "custom": "ein eigenes Ereignis kommt (Profi)",
+      "event": "Ereignisname"
     },
     "conditionTemplate": {
       "chance": "Zufall %",
@@ -622,7 +642,8 @@
       "wheelMod": "Rad-Chance",
       "setVar": "Setze Variable",
       "message": "Zeige Nachricht",
-      "call": "Eigener Effekt"
+      "call": "Eigener Effekt",
+      "code": "Code"
     },
     "duration": "Dauer",
     "limit": "Limit",
@@ -732,7 +753,8 @@
       "npcCount": "Anzahl NPCs"
     },
     "noOwnEffects": "Noch keine – baue welche in der Effekt-Werkstatt.",
-    "openWorkshop": "+ Effekt-Werkstatt"
+    "openWorkshop": "+ Effekt-Werkstatt",
+    "codeEffectHint": "Profi-Code – in der Text-Ansicht bearbeiten"
   },
   "explain": {
     "figure": {
@@ -755,7 +777,8 @@
       "damage": "verliert eine Figur Leben",
       "dies": "stirbt eine Figur",
       "tileAdded": "wird ein Feld angelegt",
-      "tileRemoved": "wird ein Feld entfernt"
+      "tileRemoved": "wird ein Feld entfernt",
+      "custom": "wenn das Ereignis „{{event}}“ gesendet wird"
     },
     "if": "({{cond}})",
     "prop": {
@@ -830,7 +853,9 @@
       "setVarAdd": "„{{name}}“ von {{owner}} steigt um {{value}}",
       "setVarSub": "„{{name}}“ von {{owner}} sinkt um {{value}}",
       "message": "Nachricht „{{text}}“",
-      "call": "Effekt „{{name}}“ ({{args}})"
+      "call": "Effekt „{{name}}“ ({{args}})",
+      "teleportNear": "{{target}} springt neben {{tile}}",
+      "code": "führt Profi-Code aus"
     },
     "world": "der Welt",
     "otherwise": "Sonst: {{effects}}.",
@@ -852,7 +877,7 @@
     "expectedValue": "Hier fehlt ein Wert.",
     "expectedComparison": "Hier fehlt ein Vergleich (=, !=, <, >, <=, >=).",
     "trailing": "Zu viel am Zeilenende: „{{found}}“.",
-    "unknownLine": "Eine Zeile beginnt mit REGEL, WENN, UND, DANN, SONST, DAUER oder LIMIT – nicht mit „{{found}}“.",
+    "unknownLine": "Eine Zeile beginnt mit REGEL, WENN, UND, DANN, SONST, DAUER, LIMIT, EFFEKT, FUNKTION oder NPC – nicht mit „{{found}}“.",
     "unknownEvent": "Unbekannter Auslöser „{{found}}“.",
     "unknownTarget": "Unbekanntes Ziel „{{found}}“.",
     "unknownTileTarget": "Unbekanntes Feld „{{found}}“.",
@@ -866,11 +891,22 @@
     "duplicateWhen": "Eine Regel hat genau ein WENN.",
     "misplacedCondition": "UND-Zeilen stehen zwischen WENN und DANN.",
     "thenAfterElse": "DANN-Zeilen stehen vor SONST.",
-    "oneRuleOnly": "Hier bitte genau eine Regel."
+    "oneRuleOnly": "Hier bitte genau eine Regel.",
+    "unexpectedEnd": "Dieses ENDE schließt keinen Block.",
+    "missingEnd": "Hier beginnt ein Block ohne ENDE.",
+    "misplacedElse": "SONST steht nur in einem WENN-Block.",
+    "rulesOnly": "Hier stehen nur Regeln – Effekte und Funktionen gehören in die Effekt-Werkstatt.",
+    "oneEffectOnly": "Hier bitte genau ein Effekt.",
+    "expectedEffect": "Ein Effekt beginnt mit EFFEKT \"Name\".",
+    "oneFunctionOnly": "Hier bitte genau eine Funktion.",
+    "expectedFunction": "Eine Funktion beginnt mit FUNKTION name(…).",
+    "oneNpcOnly": "Hier bitte genau ein NPC \"…\" ZUG.",
+    "expectedNpc": "NPC-Verhalten beginnt mit NPC \"Name\" ZUG.",
+    "unknownParamType": "Unbekannter Parametertyp „{{found}}“.",
+    "unknownMethod": "Unbekannte Methode „{{found}}“ – Listen kennen füge_hinzu."
   },
   "workshop": {
     "title": "Effekt-Werkstatt",
-    "blocksOnly": "Bausteine · Profi-Code ab v0.6",
     "mine": "Meine Sachen",
     "effects": "Effekte",
     "npcTypes": "NPC-Typen",
@@ -963,7 +999,13 @@
       "play": "SPIELE",
       "texture": "TEXTUR",
       "wait": "WARTE",
-      "call": "EFFEKT"
+      "call": "EFFEKT",
+      "while": "SOLANGE",
+      "return": "GIB ZURÜCK",
+      "send": "SENDE",
+      "after": "NACH",
+      "listAdd": "FÜGE HINZU",
+      "say": "ZEIGE"
     },
     "times": "Wie oft",
     "timesWord": "MAL",
@@ -988,7 +1030,7 @@
         "stand": "steht",
         "flee": "flieht"
       },
-      "codeSoon": "Eigenes Verhalten per Code ab v0.6.",
+      "codeSoon": "Oder eigenes Verhalten als Code – es ersetzt die Vorlage.",
       "look": "Aussehen",
       "looks": {
         "symbol": "Symbol & Farbe",
@@ -997,7 +1039,71 @@
       },
       "symbol": "Symbol",
       "usePicture": "Bild übernehmen",
-      "save": "NPC-Typ speichern"
+      "save": "NPC-Typ speichern",
+      "behaviorCode": "Eigener Code",
+      "codeLabel": "Verhalten als Code",
+      "codeTemplate": "NPC \"{{name}}\" ZUG\n  # dein Code\nENDE"
+    },
+    "modeBlocks": "Bausteine",
+    "modeCode": "Profi-Code",
+    "mode": "Ansicht",
+    "functions": "Funktionen",
+    "newFunction": "+ Funktion",
+    "program": "Code-Datei",
+    "openProgram": "+ Code-Datei",
+    "noFunctions": "Noch keine.",
+    "fileEffect": "{{name}}.effekt",
+    "fileFunction": "{{name}}.funktion",
+    "fileNpc": "{{name}}.npc",
+    "fileProgram": "profi.code",
+    "checkedBadge": "Geprüft ✓",
+    "errorsBadge": "{{count}} Fehler",
+    "codeLabel": "Code",
+    "codeBlock": "CODE",
+    "codeBlockHint": "Profi-Code – zum Bearbeiten in die Code-Ansicht wechseln",
+    "switchBlocked": "Erst die Fehler im Code beheben, dann zurück zu den Bausteinen.",
+    "proOff": "In diesem Spiel ist Profi-Code nicht erlaubt (Einstellung „Profi-Code erlaubt“).",
+    "newFunctionName": "meine_funktion",
+    "functionNote": "Funktionen rechnen nur – sie verändern die Welt nicht. Rekursion höchstens 20 tief.",
+    "saveFunction": "Funktion speichern",
+    "programNote": "Hier passen mehrere Definitionen in eine Datei: FUNKTION, EFFEKT, NPC \"…\" ZUG und REGEL. „Übernehmen“ legt alles in deine Sammlung und deine Regel-Bibliothek.",
+    "programTemplate": "# Profi-Code: Funktionen, Effekte, NPC-Verhalten und Regeln\n",
+    "apply": "Übernehmen",
+    "applied": "Übernommen: {{effects}} Effekte, {{functions}} Funktionen, {{npcs}} NPC-Verhalten, {{rules}} Regeln.",
+    "npcMissing": "NPC-Typ „{{name}}“ gibt es nicht als eigenen Typ – lege ihn zuerst an.",
+    "testSummary": "Testlauf: {{used}} von {{max}} Schritten · {{events}} Ereignisse",
+    "testAborted": "Testlauf abgebrochen: {{reason}}",
+    "debug": {
+      "title": "Variablen im Testlauf",
+      "step": "Schritt",
+      "continue": "Weiter",
+      "restart": "Neu starten",
+      "progress": "Schritt {{i}} von {{n}} · Zeile {{line}}",
+      "budget": "{{used}} von {{max}} Schritten",
+      "noVars": "Noch keine Variablen.",
+      "start": "„Schritt“ startet den Testlauf Schritt für Schritt.",
+      "done": "Fertig – alle Grenzen eingehalten.",
+      "figures": "{{count}} Figuren",
+      "tiles": "{{count}} Felder",
+      "none": "KEINE",
+      "yes": "wahr",
+      "no": "falsch"
+    },
+    "aborted": {
+      "steps": "Rechenbudget erschöpft",
+      "depth": "zu tiefe Aufrufe",
+      "list": "Liste zu lang"
+    },
+    "complete": {
+      "keyword": "Schlüsselwort",
+      "action": "Aktion",
+      "value": "Wert",
+      "effect": "Effekt",
+      "function": "Funktion",
+      "texture": "Textur",
+      "sound": "Sound",
+      "npc": "NPC-Typ",
+      "prop": "Eigenschaft"
     }
   }
 }

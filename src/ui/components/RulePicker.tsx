@@ -27,6 +27,7 @@ export function RulePicker({ game, onCancel, onConfirm, onEdit, preselectId }: P
   const own = useLibrary((s) => s.rules);
   const ownEffects = useWorkshop((s) => s.effects);
   const ownNpcs = useWorkshop((s) => s.npcTypes);
+  const ownFunctions = useWorkshop((s) => s.functions);
   const [selected, setSelected] = useState<RuleDefinition | null>(
     () => allRules(own).find((r) => r.id === preselectId) ?? null,
   );
@@ -36,9 +37,9 @@ export function RulePicker({ game, onCancel, onConfirm, onEdit, preselectId }: P
   const disabledReason = (def: RuleDefinition): string | null => {
     if (inGame.has(def.id)) return 'rules.alreadyActive';
     // The rule's own effects and NPC types travel with it (from its bundle or the workshop).
-    const withOwn = withBundleFromWorkshop(def, ownEffects, allNpcTypes(ownNpcs));
-    const { effects, npcTypes } = withBundle(game, withOwn);
-    const errors = validateRule(def.ast, game.settings, npcTypes, effects);
+    const withOwn = withBundleFromWorkshop(def, ownEffects, allNpcTypes(ownNpcs), ownFunctions);
+    const { effects, npcTypes, functions } = withBundle(game, withOwn);
+    const errors = validateRule(def.ast, game.settings, npcTypes, effects, functions);
     if (errors.length === 0) return null;
     return `validation.${errors[0]?.code ?? 'invalid'}`;
   };
@@ -115,7 +116,7 @@ export function RulePicker({ game, onCancel, onConfirm, onEdit, preselectId }: P
               onClick={() =>
                 selected &&
                 onConfirm(
-                  withBundleFromWorkshop(selected, ownEffects, allNpcTypes(ownNpcs)),
+                  withBundleFromWorkshop(selected, ownEffects, allNpcTypes(ownNpcs), ownFunctions),
                   replaceId ?? undefined,
                 )
               }

@@ -2816,3 +2816,257 @@
 .npc-editor .hint {
   color: var(--ink-soft);
 }
+
+/* ---------- Profi-Code (v0.6, reference screen 7) ---------- */
+
+.workshop-mode-switch {
+  margin-left: auto;
+}
+
+.workshop-mode-switch .segmented {
+  background: #fff;
+}
+
+.workshop-switch-error {
+  margin: 0;
+  color: #fff;
+}
+
+.code-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 24px;
+  background: #2b1a4a;
+  box-shadow: var(--card-shadow);
+  color: #fff;
+}
+
+.code-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.code-file {
+  font-weight: 600;
+  font-size: 14px;
+  color: #c9b8ff;
+}
+
+.code-badge {
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.code-badge.ok {
+  background: rgba(94, 224, 160, 0.18);
+  color: #5ee0a0;
+}
+
+.code-badge.bad {
+  background: rgba(255, 90, 95, 0.2);
+  color: #ff9a9d;
+}
+
+.code-editor {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border-radius: 12px;
+}
+
+.code-editor .cm-editor {
+  height: 100%;
+  background: transparent;
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 15px;
+}
+
+.code-editor .cm-editor.cm-focused {
+  outline: 2px solid var(--blue);
+}
+
+.code-editor .cm-scroller {
+  font-family: var(--mono);
+  font-variant-ligatures: none;
+  line-height: 1.75;
+}
+
+.code-editor .cm-gutters {
+  background: transparent;
+  border: none;
+  color: #8f7fb5;
+}
+
+.code-editor .cm-activeLine,
+.code-editor .cm-activeLineGutter {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.code-editor .cm-cursor {
+  border-left-color: #fff;
+}
+
+.code-editor .cm-selectionBackground,
+.code-editor .cm-editor.cm-focused .cm-selectionBackground {
+  background: rgba(155, 92, 246, 0.45) !important;
+}
+
+.code-editor .cm-debug-line {
+  background: rgba(255, 200, 61, 0.22);
+  box-shadow: inset 4px 0 0 var(--primary);
+}
+
+.code-editor .cm-tooltip-autocomplete {
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font-family: var(--mono);
+  overflow: hidden;
+}
+
+.code-editor .cm-tooltip-autocomplete ul li[aria-selected] {
+  background: var(--primary);
+  color: var(--ink);
+}
+
+.code-editor .cm-completionDetail {
+  margin-left: 12px;
+  font-family: var(--font);
+  font-style: normal;
+  color: var(--ink-soft);
+}
+
+.code-editor .cm-tooltip-lint {
+  background: #fff;
+  color: var(--ink);
+  border-radius: 8px;
+}
+
+.code-problems {
+  margin: 0;
+  padding: 8px 12px 8px 28px;
+  border-radius: 12px;
+  background: rgba(255, 90, 95, 0.18);
+  color: #ffd2d3;
+  font-size: 14px;
+}
+
+.code-panel-foot {
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.code-panel-foot .hint,
+.code-panel-foot p {
+  margin: 0;
+  color: #e2d6ff;
+}
+
+.debug-panel .budget-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--lilac);
+  overflow: hidden;
+}
+
+.debug-panel .budget-bar span {
+  display: block;
+  height: 100%;
+  background: var(--violet);
+}
+
+.debug-vars {
+  margin: 8px 0;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.debug-var {
+  display: flex;
+  gap: 8px;
+}
+
+.debug-var dt {
+  min-width: 64px;
+  font-weight: 600;
+}
+
+.debug-var dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.debug-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.debug-actions .btn {
+  flex: 1;
+}
+
+.debug-actions .btn-soft {
+  flex-basis: 100%;
+}
+
+.stmt-code {
+  background: #d9d3e6;
+}
+
+.code-block-open {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 2px dashed var(--ink-soft);
+  border-radius: 10px;
+  background: #ece8f4;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.code-block-open pre,
+.code-snippet {
+  margin: 0;
+  font-family: var(--mono);
+  font-variant-ligatures: none;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.code-snippet {
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #ece8f4;
+  color: var(--ink);
+}
+
+.npc-canvas {
+  grid-column: 2 / 4;
+}
+
+.npc-code {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  align-items: start;
+  gap: 12px;
+}
+
+.npc-code .code-panel {
+  min-height: 280px;
+}
+
+.npc-code .debug-panel {
+  border: 3px solid var(--lilac-strong);
+}

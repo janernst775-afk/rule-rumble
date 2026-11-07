@@ -197,41 +197,42 @@ export interface EffectParam {
   type: ParamType;
 }
 
-export type Stmt = /** A primitive (all effects from SPEC 5.2) or a call of another own effect. */
-(
-  | { kind: 'do'; effect: Effect }
-  | { kind: 'if'; cond: Expr; then: Stmt[]; else: Stmt[] }
-  /** WIEDERHOLE n MAL (max. 10) */
-  | { kind: 'repeat'; times: Expr; body: Stmt[] }
-  /** FÜR JEDE x IN menge (max. 200 Elemente) */
-  | { kind: 'forEach'; var: string; in: Expr; body: Stmt[] }
-  /** WÄHLE ZUFÄLLIG x AUS menge */
-  | { kind: 'pick'; var: string; from: Expr }
-  /** MERKE x = … (local variable) */
-  | { kind: 'let'; name: string; value: Expr }
-  /** SPIELE "sound" (audible from v0.7) */
-  | { kind: 'play'; sound: Expr }
-  /** TEXTUR feld "Name" */
-  | { kind: 'texture'; tile: Expr; name: Expr }
-  /** WARTE 0.5 (animation only, no game effect) */
-  | { kind: 'wait'; seconds: number }
-  // ---- Profi-Code (SPEC 5.8) ----
-  /** SOLANGE bedingung … ENDE (the step budget stops endless loops) */
-  | { kind: 'while'; cond: Expr; body: Stmt[] }
-  /** GIB ZURÜCK wert (functions only) */
-  | { kind: 'return'; value: Expr }
-  /** SENDE "name": raises the own event WENN EREIGNIS "name" */
-  | { kind: 'send'; event: string }
-  /** NACH n RUNDEN … ENDE: runs the body at the start of round + n */
-  | { kind: 'after'; rounds: number; body: Stmt[] }
-  /** liste.füge_hinzu(x) */
-  | { kind: 'listAdd'; list: string; value: Expr }
-  /** ZEIGE with a computed text, e.g. ZEIGE "Flut: " + welt.flut */
-  | { kind: 'say'; text: Expr }
-) & {
-  /** Source line (code view only; used by the debugger and error messages). */
-  line?: number;
-};
+export type Stmt =
+  /** A primitive (all effects from SPEC 5.2) or a call of another own effect. */
+  (
+    | { kind: 'do'; effect: Effect }
+    | { kind: 'if'; cond: Expr; then: Stmt[]; else: Stmt[] }
+    /** WIEDERHOLE n MAL (max. 10) */
+    | { kind: 'repeat'; times: Expr; body: Stmt[] }
+    /** FÜR JEDE x IN menge (max. 200 Elemente) */
+    | { kind: 'forEach'; var: string; in: Expr; body: Stmt[] }
+    /** WÄHLE ZUFÄLLIG x AUS menge */
+    | { kind: 'pick'; var: string; from: Expr }
+    /** MERKE x = … (local variable) */
+    | { kind: 'let'; name: string; value: Expr }
+    /** SPIELE "sound" (audible from v0.7) */
+    | { kind: 'play'; sound: Expr }
+    /** TEXTUR feld "Name" */
+    | { kind: 'texture'; tile: Expr; name: Expr }
+    /** WARTE 0.5 (animation only, no game effect) */
+    | { kind: 'wait'; seconds: number }
+    // ---- Profi-Code (SPEC 5.8) ----
+    /** SOLANGE bedingung … ENDE (the step budget stops endless loops) */
+    | { kind: 'while'; cond: Expr; body: Stmt[] }
+    /** GIB ZURÜCK wert (functions only) */
+    | { kind: 'return'; value: Expr }
+    /** SENDE "name": raises the own event WENN EREIGNIS "name" */
+    | { kind: 'send'; event: string }
+    /** NACH n RUNDEN … ENDE: runs the body at the start of round + n */
+    | { kind: 'after'; rounds: number; body: Stmt[] }
+    /** liste.füge_hinzu(x) */
+    | { kind: 'listAdd'; list: string; value: Expr }
+    /** ZEIGE with a computed text, e.g. ZEIGE "Flut: " + welt.flut */
+    | { kind: 'say'; text: Expr }
+  ) & {
+    /** Source line (code view only; used by the debugger and error messages). */
+    line?: number;
+  };
 
 export type StmtKind = Stmt['kind'];
 

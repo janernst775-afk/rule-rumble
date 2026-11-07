@@ -32,6 +32,7 @@ export function emptyRule(name: string): RuleAST {
 export function defaultTrigger(kind: TriggerKind): Trigger {
   if (kind === 'everyNRounds') return { kind, n: 3 };
   if (kind === 'enters') return { kind, newOnly: false };
+  if (kind === 'custom') return { kind, event: 'signal' };
   return { kind } as Trigger;
 }
 

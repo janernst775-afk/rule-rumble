@@ -2,7 +2,7 @@
 // where possible, a suggestion ("Zeile 3: auslöser gibt es bei RUNDENSTART nicht.
 // Meintest du alle?", SPEC 5.4).
 import type { NpcType, Settings } from '../engine/types';
-import type { EffectDef, RuleAST } from './ast';
+import type { EffectDef, FunctionDef, RuleAST } from './ast';
 import { TRIGGER_CONTEXT } from './context';
 import { EVENT_KW, KW, TARGET_W, TILE_W, VALUE_W } from './keywords';
 import { parseRule, type ParsedRule, type RuleLines } from './parser';
@@ -81,7 +81,7 @@ export function validationDiagnostics(
     const d: Diagnostic = {
       source: 'validate',
       key: `validation.${e.code}`,
-      line: lineOf(lines, e.path),
+      line: e.line ?? lineOf(lines, e.path),
       col: 1,
     };
     if (e.code === 'contextMissing') {
@@ -103,6 +103,7 @@ export function checkRuleText(
   settings: Settings,
   npcTypes: readonly NpcType[],
   effects: readonly EffectDef[] = [],
+  functions: readonly FunctionDef[] = [],
 ): { rule: ParsedRule | null; diagnostics: Diagnostic[] } {
   const { rule, errors } = parseRule(text);
   if (!rule) {
@@ -116,6 +117,6 @@ export function checkRuleText(
       }),
     };
   }
-  const vErrors = validateRule(rule.ast, settings, npcTypes, effects);
+  const vErrors = validateRule(rule.ast, settings, npcTypes, effects, functions);
   return { rule, diagnostics: validationDiagnostics(rule.ast, rule.lines, vErrors) };
 }

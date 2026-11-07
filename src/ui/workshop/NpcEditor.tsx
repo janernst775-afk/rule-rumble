@@ -1,8 +1,20 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { debugNpc, type DebugRun } from '../../bots/debugRun';
 import { NPC_LIMITS } from '../../engine/limits';
+import { DEFAULT_SETTINGS } from '../../engine/settings';
 import type { NpcBehavior, NpcType } from '../../engine/types';
+import type { EffectDef, FunctionDef } from '../../lang/ast';
 import { slug } from '../../lang/library/startRules';
+import { parseProgram } from '../../lang/parser';
+import { printNpcCode } from '../../lang/printer';
+import { validateNpcCode } from '../../lang/validator';
+import { useProfile } from '../../store/profileStore';
+import { CodePanel } from '../code/CodePanel';
+import type { CodeProblem } from '../code/CodeEditor';
+import { DebugPanel } from '../code/DebugPanel';
+import type { CompletionWords } from '../code/language';
+import { parseProblems, validationProblems } from '../code/problems';
 import { ACCEPTED_TYPES, checkImageFile } from '../avatarUtils';
 import { Avatar } from '../components/Avatar';
 import { Segmented, Stepper } from '../components/Controls';
@@ -28,11 +40,19 @@ interface Props {
   takenIds: string[];
   onSave: (npc: NpcType, previousId: string | null) => void;
   onDelete?: (() => void) | undefined;
+  /** Effects, functions and NPC types own code may use. */
+  library: {
+    effects: readonly EffectDef[];
+    functions: readonly FunctionDef[];
+    npcTypes: readonly NpcType[];
+  };
+  words: CompletionWords;
 }
 
-/** Own NPC type (SPEC 5.9): name, look (drawn or uploaded), life, movement, behavior. */
-export function NpcEditor({ initial, takenIds, onSave, onDelete }: Props) {
+/** Own NPC type (SPEC 5.9): name, look, life, movement, behavior template or own code (5.8). */
+export function NpcEditor({ initial, takenIds, onSave, onDelete, library, words }: Props) {
   const { t } = useTranslation();
+  const lang = useProfile((s) => s.codeLang);
   const [name, setName] = useState(initial?.name ?? t('workshop.npc.defaultName'));
   const [symbol, setSymbol] = useState(initial?.symbol ?? 'G');
   const [color, setColor] = useState(initial?.color ?? '#9B5CF6');
@@ -40,6 +60,13 @@ export function NpcEditor({ initial, takenIds, onSave, onDelete }: Props) {
   const [hp, setHp] = useState(initial?.hp ?? 1);
   const [move, setMove] = useState(initial?.move ?? 1);
   const [behavior, setBehavior] = useState<NpcBehavior>(initial?.behavior ?? 'chase');
+  const [useCode, setUseCode] = useState(!!initial?.code?.length);
+  const [codeText, setCodeText] = useState(() =>
+    initial?.code?.length
+      ? printNpcCode({ npc: initial.name, body: initial.code }, lang)
+      : t('workshop.npc.codeTemplate', { name: initial?.name ?? t('workshop.npc.defaultName') }),
+  );
+  const [debug, setDebug] = useState<{ run: DebugRun; index: number } | null>(null);
   const [look, setLook] = useState<'symbol' | 'draw' | 'upload'>('symbol');
   const [tool, setTool] = useState<PaintTool>('brush');
   const [size, setSize] = useState<number>(BRUSH_SIZES[1]);
@@ -55,7 +82,52 @@ export function NpcEditor({ initial, takenIds, onSave, onDelete }: Props) {
 
   const id = slug(name).slice(0, 30);
   const idTaken = takenIds.includes(id) && id !== initial?.id;
-  const valid = name.trim().length > 0 && id.length > 0 && !idTaken && [...symbol].length <= 2;
+
+  // Own behavior: NPC "Name" ZUG … ENDE, checked against this type.
+  const code = useMemo((): { body: NpcType['code']; problems: CodeProblem[] } => {
+    if (!useCode) return { body: null, problems: [] };
+    const { parsed, errors } = parseProgram(codeText);
+    const problems = parseProblems(errors, t);
+    const p = parsed.program;
+    const npcCode = p.npcCode[0];
+    const count = p.npcCode.length + p.rules.length + p.effects.length + p.functions.length;
+    if (errors.length === 0 && (!npcCode || count > 1)) {
+      problems.push({ line: 1, message: t(npcCode ? 'parse.oneNpcOnly' : 'parse.expectedNpc') });
+    }
+    if (!npcCode || problems.length > 0) return { body: null, problems };
+    const self: NpcType = { id, name, symbol, color, hp, move, behavior };
+    const types = [...library.npcTypes.filter((n) => n.id !== id && n.id !== initial?.id), self];
+    const errs = validateNpcCode(
+      { npc: id, body: npcCode.body },
+      DEFAULT_SETTINGS,
+      types,
+      library.effects,
+      library.functions,
+    );
+    problems.push(...validationProblems(errs, t));
+    return { body: problems.length === 0 ? npcCode.body : null, problems };
+  }, [useCode, codeText, t, id, name, symbol, color, hp, move, behavior, library, initial]);
+
+  const valid =
+    name.trim().length > 0 &&
+    id.length > 0 &&
+    !idTaken &&
+    [...symbol].length <= 2 &&
+    (!useCode || !!code.body);
+
+  const debugStep = (toEnd: boolean) => {
+    if (!code.body) return;
+    const run =
+      debug?.run ??
+      debugNpc(
+        { id: id || 'npc', name, symbol, color, hp, move, behavior },
+        code.body,
+        { ...library },
+        1,
+      );
+    const last = run.steps.length - 1;
+    setDebug({ run, index: toEnd ? last : Math.min(last, (debug?.index ?? -1) + 1) });
+  };
 
   const save = () => {
     if (!valid) return;
@@ -69,6 +141,7 @@ export function NpcEditor({ initial, takenIds, onSave, onDelete }: Props) {
         hp,
         move,
         behavior,
+        code: useCode ? code.body : null,
       },
       initial?.id ?? null,
     );
@@ -115,14 +188,48 @@ export function NpcEditor({ initial, takenIds, onSave, onDelete }: Props) {
         </div>
         <div>
           <span className="label">{t('workshop.npc.behavior')}</span>
-          <Segmented
+          <Segmented<NpcBehavior | 'code'>
             label={t('workshop.npc.behavior')}
-            value={behavior}
-            options={BEHAVIORS.map((b) => ({ value: b, label: t(`workshop.npc.behaviors.${b}`) }))}
-            onChange={setBehavior}
+            value={useCode ? 'code' : behavior}
+            options={[
+              ...BEHAVIORS.map((b) => ({ value: b, label: t(`workshop.npc.behaviors.${b}`) })),
+              { value: 'code' as const, label: t('workshop.npc.behaviorCode') },
+            ]}
+            onChange={(v) => {
+              setDebug(null);
+              if (v === 'code') setUseCode(true);
+              else {
+                setUseCode(false);
+                setBehavior(v);
+              }
+            }}
           />
           <p className="hint">{t('workshop.npc.codeSoon')}</p>
         </div>
+        {useCode && (
+          <div className="npc-code">
+            <CodePanel
+              file={t('workshop.fileNpc', { name: id || 'npc' })}
+              value={codeText}
+              onChange={(v) => {
+                setCodeText(v);
+                setDebug(null);
+              }}
+              problems={code.problems}
+              words={words}
+              lang={lang}
+              activeLine={debug ? (debug.run.steps[debug.index]?.line ?? null) : null}
+            />
+            <DebugPanel
+              run={debug?.run ?? null}
+              index={debug?.index ?? -1}
+              disabled={!code.body}
+              onStep={() => debugStep(false)}
+              onContinue={() => debugStep(true)}
+              onRestart={() => setDebug(null)}
+            />
+          </div>
+        )}
         <div>
           <span className="label">{t('workshop.npc.look')}</span>
           <Segmented

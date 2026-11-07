@@ -14,7 +14,10 @@
   "prefs": {
     "title": "Settings",
     "language": "Language",
-    "languages": { "de": "Deutsch", "en": "English" }
+    "languages": {
+      "de": "Deutsch",
+      "en": "English"
+    }
   },
   "game": {
     "actions": {
@@ -23,6 +26,23 @@
       "removeTile": "Tile −",
       "addRule": "New rule",
       "pass": "Pass"
+    }
+  },
+  "workshop": {
+    "modeBlocks": "Blocks",
+    "modeCode": "Pro code",
+    "functions": "Functions",
+    "newFunction": "+ Function",
+    "program": "Code file",
+    "openProgram": "+ Code file",
+    "checkedBadge": "Checked ✓",
+    "apply": "Apply",
+    "codeBlock": "CODE",
+    "debug": {
+      "title": "Variables in test run",
+      "step": "Step",
+      "continue": "Continue",
+      "restart": "Restart"
     }
   }
 }
