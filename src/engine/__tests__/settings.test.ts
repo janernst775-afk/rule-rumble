@@ -25,8 +25,8 @@ describe('settings', () => {
   });
 
   it('computes boss hp per hero, solo and fixed', () => {
-    expect(bossHpFor(DEFAULT_SETTINGS, 3)).toBe(9);
-    expect(bossHpFor(DEFAULT_SETTINGS, 1)).toBe(4);
+    expect(bossHpFor(DEFAULT_SETTINGS, 3)).toBe(12);
+    expect(bossHpFor(DEFAULT_SETTINGS, 1)).toBe(3);
     const s = cloneSettings(DEFAULT_SETTINGS);
     s.figures.bossHp = { mode: 'fixed', value: 7 };
     expect(bossHpFor(s, 4)).toBe(7);

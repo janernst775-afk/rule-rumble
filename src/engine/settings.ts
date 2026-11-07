@@ -38,7 +38,8 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   figures: {
     heroHp: 3,
-    bossHp: { mode: 'perHero', perHero: 3, solo: 4 },
+    // Tuned with `npm run sim` (v0.8): boss win rate 40–60 % per template.
+    bossHp: { mode: 'perHero', perHero: 4, solo: 3 },
     heroMove: 1,
     bossMove: 2,
   },
@@ -82,6 +83,7 @@ export const TEMPLATES: Record<TemplateId, Settings> = {
     s.bots.heroChaos = 25;
   }),
   tactics: withDefaults((s) => {
+    s.figures.bossHp = { mode: 'perHero', perHero: 5, solo: 4 };
     s.rules.maxActive = 4;
     s.rules.allowRandom = false;
     s.board.startSize = 5;
@@ -93,9 +95,16 @@ export const TEMPLATES: Record<TemplateId, Settings> = {
     s.board.minTiles = 10;
     s.board.maxTiles = 30;
     s.tempo.turnTimeSec = 20;
-    s.figures.bossHp = { mode: 'perHero', perHero: 2, solo: 3 };
+    s.figures.bossHp = { mode: 'perHero', perHero: 3, solo: 2 };
+    s.figures.heroHp = 2;
+    s.figures.bossMove = 1;
+    s.figures.heroMove = 2;
+    s.combat.wheelChance = 70;
+    s.combat.comeback = true;
   }),
   builder: withDefaults((s) => {
+    s.figures.bossHp = { mode: 'perHero', perHero: 5, solo: 4 };
+    s.figures.heroHp = 4;
     s.board.tileActionsPerAction = 2;
     s.board.maxTiles = 100;
   }),

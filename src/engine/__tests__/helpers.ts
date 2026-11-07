@@ -18,6 +18,8 @@ export function seat(
 
 export function makeGame(heroCount = 2, patch?: (s: Settings) => void, seed = 42): GameState {
   const settings = cloneSettings(DEFAULT_SETTINGS);
+  // Mechanics tests use fixed boss lives, independent of the tuned defaults (v0.8).
+  settings.figures.bossHp = { mode: 'perHero', perHero: 3, solo: 4 };
   patch?.(settings);
   const seats = [
     ...Array.from({ length: heroCount }, (_, i) => seat('hero', `H${i + 1}`)),
