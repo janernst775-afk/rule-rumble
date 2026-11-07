@@ -1,6 +1,7 @@
 // Validator for rules and own effects (SPEC 5.6, 5.7): types, context values per trigger,
 // limits (SPEC 6), "rules are the same for everyone" and the settings of the running game.
 import { EFFECT_LIMITS as EL, RULE_LIMITS as L } from '../engine/limits';
+import { DEFAULT_SETTINGS } from '../engine/settings';
 import type { NpcType, Settings, TileType } from '../engine/types';
 import type {
   Effect,
@@ -607,3 +608,19 @@ export function validateEffect(
   checkStmts(env, def.body, 'body');
   return env.errors;
 }
+
+/** Type of an expression inside an effect body (for the block editor). */
+export function inferType(e: Expr, scope: ReadonlyMap<string, ValueType>): T {
+  const env: Env = {
+    ctx: EFFECT_CONTEXT,
+    inEffect: true,
+    settings: DEFAULT_SETTINGS,
+    npcTypes: [],
+    effects: [],
+    scope: new Map(scope),
+    errors: [],
+  };
+  return exprType(env, e, '');
+}
+
+export type InferredType = T;

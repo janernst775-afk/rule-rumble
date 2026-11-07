@@ -2,7 +2,7 @@
 // where possible, a suggestion ("Zeile 3: auslöser gibt es bei RUNDENSTART nicht.
 // Meintest du alle?", SPEC 5.4).
 import type { NpcType, Settings } from '../engine/types';
-import type { RuleAST } from './ast';
+import type { EffectDef, RuleAST } from './ast';
 import { TRIGGER_CONTEXT } from './context';
 import { EVENT_KW, KW, TARGET_W, TILE_W, VALUE_W } from './keywords';
 import { parseRule, type ParsedRule, type RuleLines } from './parser';
@@ -101,6 +101,7 @@ export function checkRuleText(
   text: string,
   settings: Settings,
   npcTypes: readonly NpcType[],
+  effects: readonly EffectDef[] = [],
 ): { rule: ParsedRule | null; diagnostics: Diagnostic[] } {
   const { rule, errors } = parseRule(text);
   if (!rule) {
@@ -114,6 +115,6 @@ export function checkRuleText(
       }),
     };
   }
-  const vErrors = validateRule(rule.ast, settings, npcTypes);
+  const vErrors = validateRule(rule.ast, settings, npcTypes, effects);
   return { rule, diagnostics: validationDiagnostics(rule.ast, rule.lines, vErrors) };
 }

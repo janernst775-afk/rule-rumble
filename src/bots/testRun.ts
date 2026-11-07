@@ -3,6 +3,7 @@
 // whom it affects. Pure and deterministic for a given seed.
 import { causeOf } from '../engine/bus';
 import { cloneSettings, DEFAULT_SETTINGS } from '../engine/settings';
+import { withBundle } from '../engine/rules';
 import { createGame } from '../engine/setup';
 import type { ActiveRule, GameEvent, GameState } from '../engine/types';
 import type { RuleDefinition } from '../lang/ast';
@@ -75,7 +76,15 @@ function withTestRule(state: GameState, def: RuleDefinition): GameState {
     firedThisTurn: 0,
     firedTotal: 0,
   };
-  return { ...structuredClone(state), pendingVote: null, rules: [...state.rules, rule] };
+  // Own effects and NPC types of the rule join the test game, as with addRule.
+  const merged = withBundle(state, def);
+  return {
+    ...structuredClone(state),
+    pendingVote: null,
+    effects: structuredClone(merged.effects),
+    npcTypes: structuredClone(merged.npcTypes),
+    rules: [...state.rules, rule],
+  };
 }
 
 const FIGURE_EVENTS = new Set<GameEvent['type']>([
