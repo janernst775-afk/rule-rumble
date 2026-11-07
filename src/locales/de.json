@@ -782,7 +782,7 @@
       "allNpcs": "alle NPCs"
     },
     "effect": {
-      "spawn": "{{npc}} erscheint auf {{tile}}",
+      "spawn": "{{npc}} erscheint (Ort: {{tile}})",
       "damage": "{{target}} verliert 1 Leben",
       "heal": "{{target}} bekommt 1 Leben",
       "shield": "{{target}} bekommt einen Schild",

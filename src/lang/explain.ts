@@ -80,7 +80,7 @@ function tileText(tt: TileTarget, t: Translate): string {
 export function effectText(e: Effect, t: Translate): string {
   switch (e.kind) {
     case 'spawn':
-      return t('explain.effect.spawn', { npc: e.npcType, tile: tileText(e.at, t) });
+      return t('explain.effect.spawn', { npc: capitalize(e.npcType), tile: tileText(e.at, t) });
     case 'damage':
     case 'heal':
     case 'shield':

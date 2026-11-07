@@ -5,6 +5,7 @@ import type { CmpOp, Effect, Expr, Target, TileTarget, Trigger, TriggerKind } fr
 import { printCondition } from '../../lang/printer';
 import { CloseIcon, ChevronIcon } from '../components/Icons';
 import { TRIGGER_KINDS } from '../ruleText';
+import { targetLabel, tileLabel, valueLabel } from './labels';
 import {
   defaultTrigger,
   isSimpleCondition,
@@ -178,45 +179,6 @@ function TextField({
   );
 }
 
-// ---------- labels ----------
-
-type T = (key: string, params?: Record<string, string | number>) => string;
-
-export function targetLabel(t: T, x: Target): string {
-  return t(`editor.target.${x.kind === 'ref' ? x.ref : x.kind}`);
-}
-
-export function tileLabel(t: T, x: TileTarget): string {
-  if (x.kind === 'figureTile')
-    return t('editor.tile.figureTile', { who: t(`editor.target.${x.ref}`) });
-  return t(`editor.tile.${x.kind}`);
-}
-
-export function valueLabel(t: T, e: Expr): string {
-  switch (e.kind) {
-    case 'figureProp':
-      return t('editor.value.figureProp', {
-        who: t(`editor.target.${e.ref}`),
-        prop: t(`editor.prop.${e.prop}`),
-      });
-    case 'figureVar':
-      return t('editor.value.figureVar', { who: t(`editor.target.${e.ref}`) });
-    case 'tileProp': {
-      const tile =
-        e.tile.kind === 'figureTile' ? tileLabel(t, e.tile) : t(`editor.tile.${e.tile.kind}`);
-      return t('editor.value.tileProp', { tile, prop: t(`editor.tileProp.${e.prop}`) });
-    }
-    case 'global':
-      return t(`editor.global.${e.name}`);
-    case 'worldVar':
-      return t('editor.value.worldVar');
-    case 'amount':
-      return t('editor.value.amount');
-    default:
-      return e.kind;
-  }
-}
-
 // ---------- trigger ----------
 
 export function TriggerFields({
@@ -383,7 +345,7 @@ export function ConditionFields({
 
 // ---------- effects ----------
 
-export function EffectFields({
+function EffectInputs({
   effect,
   trigger,
   npcTypes,
@@ -591,4 +553,17 @@ export function EffectFields({
         />
       );
   }
+}
+
+type EffectFieldsProps = Parameters<typeof EffectInputs>[0];
+
+/** An effect block: the action name (as in the reference "Spawne …") and its inputs. */
+export function EffectFields(props: EffectFieldsProps) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <span className="block-action">{t(`editor.effect.${props.effect.kind}`)}</span>
+      <EffectInputs {...props} />
+    </>
+  );
 }
