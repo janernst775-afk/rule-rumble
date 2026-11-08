@@ -168,3 +168,33 @@ Abweichungen von der Spec und technische Entscheidungen, neueste unten.
 - **Pakete:** `sounds` enthält Aufnahmen, deren Name in Regeln, Effekten, Funktionen oder NPC-Code als Text vorkommt oder die ein NPC-Typ als Sound nutzt.
   - Beim Import werden nur WAV-Data-URLs bis 600 kB und bis 3 s mit gültigem Namen angenommen.
   - Gleichnamige Sounds werden ersetzt, der Autor bleibt erhalten.
+
+## 2026-11-08 – Umsetzung v0.8
+
+- **`npm run sim`:**
+  - Baut `src/sim/cli.ts` mit `vite build --ssr` nach `.sim/` und startet es in Node. Ein eigener Build-Schritt war nötig, weil die Startregeln über Vites `?raw` geladen werden; neue Abhängigkeiten braucht es so nicht.
+  - Die Spiele laufen in Worker-Threads (alle Kerne bis auf einen).
+  - 1000 Spiele werden gleichmäßig auf die 6 Vorlagen verteilt (je 167). Je Spiel sind 2 zufällige gültige Startregeln von Beginn an aktiv; Helden 2–4 (Solo: 1); Bots „Normal“; Abbruch nach 600 Zügen (zählt als „offen“).
+  - `--set pfad=wert` ändert Einstellungen für Experimente.
+- **Balance** (Ergebnis `npm run sim`, Seed 1: Klassisch 56,9 %, Chaos 55,7 %, Taktik 44,3 %, Schnell 51,5 %, Baumeister 48,5 %, Solo 53,9 % Boss-Siege):
+  - Standard: Boss-Leben 4 × Helden statt 3 × Helden, im Solo 3 statt 4.
+  - Taktik: Boss 5 × Helden.
+  - Baumeister: Boss 5 × Helden, Helden 4 Leben.
+  - Schnell: Boss 3 × Helden (weiterhin weniger als Klassisch), Helden 2 Leben und Bewegung 2, Boss-Bewegung 1, Rad 70 %, Comeback an. Diese Vorlage reagiert empfindlich auf den Seed (je nach Lauf etwa 37–51 %); die übrigen Vorlagen liegen stabil im Ziel.
+  - Mechanik-Tests nutzen über `makeGame` weiter Boss-Leben 3 × Helden, damit sie unabhängig von der Balance bleiben.
+- **Bot-Fehler gefunden:** Nach einer ersten Feld-Aktion (Baumeister) boten Bots einen Angriff an, den die Engine ablehnt. Behoben, mit Regressionstest.
+- **Schwierigkeiten** (SPEC 7):
+  - Leicht: 40 % Zufall, nur Startregeln.
+  - Normal: unverändert.
+  - Schwer: 5 % Zufall. Die 6 besten Kandidaten werden mit einem Zug Vorausschau neu bewertet: die nächste Figur antwortet mit der schnellen Strategie, der Mittelwert aus erwarteter und vorausgeschauter Bewertung zählt. Regeln werden öfter erwogen (50 %).
+  - „Nutzt eigene Regeln aus Vorlagen“ heißt hier: Bots auf „Schwer“ ziehen zusätzlich die eigenen Regeln der Bibliothek in Betracht. Die UI reicht sie samt Bundle herein; die Engine bleibt rein.
+  - Die Balance-Ziele gelten für „Normal“. Zur Information: Klassisch kommt mit „Leicht“ auf etwa 63 % Boss-Siege, mit „Schwer“ auf etwa 48 %.
+- **Animationen:** Getrieben von den Ereignissen des letzten Engine-Schritts (`BoardFx` im Game-Store), per CSS-Keyframes auf einer inneren Gruppe der Spielfiguren.
+  - Treffer: Wackeln plus Aufblitzen. Neuer NPC: Aufploppen. Heilung oder Schild: grünes Leuchten. Neues oder verändertes Feld: Ring.
+  - Bei `prefers-reduced-motion` ist alles aus.
+- **Regel-Album:** Entfernte Regeln bleiben in `GameState.pastRules`. Der Ergebnis-Screen zeigt alle Regeln des Spiels in Reihenfolge, je mit Klartext, Autor, Startrunde, Auslösungen und ob sie bis zum Schluss galten.
+- **„So geht's“:** ein Dialog mit 7 Schritten (Ziel, Zug, Angriff, Brett, Regeln, Werkstatt, Tasten), bedienbar mit Pfeiltasten.
+- **Englisch:**
+  - `en.json` ist vollständig; ein Test prüft, dass Deutsch und Englisch dieselben Schlüssel haben.
+  - Namen von Startregeln und Bots bleiben deutsch: Sie sind Inhalt (Teil des Regeltexts `REGEL "…"`), keine UI.
+  - Die Sprache der Regel-Texte bleibt die getrennte Profil-Einstellung.

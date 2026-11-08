@@ -166,11 +166,11 @@ Reihenfolge ist verbindlich. Jeder Meilenstein endet mit Bericht und Stopp (sieh
 
 ## v0.8 – Feinschliff & Balance
 
-- [ ] Schwierigkeiten Leicht und Schwer für Bots
-- [ ] `npm run sim`: 1000 Bot-gegen-Bot-Spiele mit zufälligen Bibliotheksregeln, Ausgabe der Boss-Siegquote je Vorlage
-- [ ] Standardwerte so justiert, dass die Boss-Siegquote je Vorlage bei 40–60 % liegt
-- [ ] „So geht's“-Tutorial, Animationen, Regel-Album auf dem Ergebnis-Screen
-- [ ] Englische Übersetzung vervollständigen
+- [x] Schwierigkeiten Leicht und Schwer für Bots
+- [x] `npm run sim`: 1000 Bot-gegen-Bot-Spiele mit zufälligen Bibliotheksregeln, Ausgabe der Boss-Siegquote je Vorlage
+- [x] Standardwerte so justiert, dass die Boss-Siegquote je Vorlage bei 40–60 % liegt
+- [x] „So geht's“-Tutorial, Animationen, Regel-Album auf dem Ergebnis-Screen
+- [x] Englische Übersetzung vervollständigen
 
 **Abnahme:** Simulation im Zielbereich, alle Screens auf Deutsch und Englisch vollständig.
 
