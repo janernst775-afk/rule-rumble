@@ -3,6 +3,7 @@ import { playSfx } from '../../audio/audio';
 import { useApp } from '../../store/appStore';
 import { useGame } from '../../store/gameStore';
 import { Avatar } from '../components/Avatar';
+import { ruleDescription } from '../ruleText';
 
 export function ResultScreen() {
   const { t } = useTranslation();
@@ -19,6 +20,9 @@ export function ResultScreen() {
         ? t('result.bossWins')
         : t('result.draw');
   const ids = game.seatOrder;
+  // Rule album (v0.8): every rule of this game in the order it came in.
+  const album = [...(game.pastRules ?? []), ...game.rules].sort((a, b) => a.order - b.order);
+  const active = new Set(game.rules.map((r) => r.id));
 
   const again = () => {
     playSfx('click');
@@ -95,7 +99,34 @@ export function ResultScreen() {
           </tbody>
         </table>
 
-        <p className="hint">{t('result.album')}</p>
+        <h2 className="subhead">{t('result.albumTitle', { count: album.length })}</h2>
+        {album.length === 0 ? (
+          <p className="hint">{t('result.albumEmpty')}</p>
+        ) : (
+          <ol className="rule-album">
+            {album.map((r) => {
+              const author = game.participants[r.authorId];
+              return (
+                <li key={r.id} className={`album-card${active.has(r.id) ? '' : ' is-past'}`}>
+                  <div className="album-head">
+                    <strong>{r.def.ast.name}</strong>
+                    <span className="pill">
+                      {active.has(r.id) ? t('result.albumActive') : t('result.albumGone')}
+                    </span>
+                  </div>
+                  <p>{ruleDescription(r.def, t)}</p>
+                  <p className="hint">
+                    {t('result.albumMeta', {
+                      author: author?.name ?? '?',
+                      round: r.activeFromRound,
+                      count: r.firedTotal,
+                    })}
+                  </p>
+                </li>
+              );
+            })}
+          </ol>
+        )}
 
         <div className="result-actions">
           <button

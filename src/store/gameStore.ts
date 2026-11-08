@@ -32,6 +32,32 @@ export interface WheelState {
   pending?: { state: GameState; events: GameEvent[] };
 }
 
+/** Short board animations for the last engine step (v0.8). */
+export interface BoardFx {
+  /** Changes with every step, so that animations restart. */
+  id: number;
+  hit: FigureId[];
+  healed: FigureId[];
+  spawned: FigureId[];
+  /** Tile keys "x,y" */
+  tilesAdded: string[];
+  tilesChanged: string[];
+}
+
+function fxFor(events: GameEvent[], id: number): BoardFx {
+  const fx: BoardFx = { id, hit: [], healed: [], spawned: [], tilesAdded: [], tilesChanged: [] };
+  for (const e of events) {
+    if (e.type === 'damaged') fx.hit.push(e.figure);
+    if (e.type === 'healed' || e.type === 'statusAdded') fx.healed.push(e.figure);
+    if (e.type === 'spawned') fx.spawned.push(e.figure);
+    if (e.type === 'tileAdded') fx.tilesAdded.push(`${e.pos.x},${e.pos.y}`);
+    if (e.type === 'tileTypeChanged' || e.type === 'textureChanged') {
+      fx.tilesChanged.push(`${e.pos.x},${e.pos.y}`);
+    }
+  }
+  return fx;
+}
+
 export interface Toast {
   id: number;
   key: string;
@@ -49,6 +75,7 @@ interface GameStore {
   ruleGlow: Record<string, number>;
   /** Increments on every new game; async drivers use it to abort stale work. */
   generation: number;
+  fx: BoardFx | null;
   start: (setup: GameSetup) => void;
   clear: () => void;
   dispatch: (action: Action) => ApplyResult | null;
@@ -164,6 +191,7 @@ export const useGame = create<GameStore>()((set, get) => {
     set((s) => ({
       ...extra,
       game: state,
+      fx: fxFor(events, (s.fx?.id ?? 0) + 1),
       ruleGlow: glow,
       toasts: [...s.toasts, ...toasts].slice(-4),
     }));
@@ -176,6 +204,7 @@ export const useGame = create<GameStore>()((set, get) => {
     toasts: [],
     ruleGlow: {},
     generation: 0,
+    fx: null,
 
     start: (setup) => {
       const { state } = createGame(setup);
@@ -186,6 +215,7 @@ export const useGame = create<GameStore>()((set, get) => {
         toasts: [],
         ruleGlow: {},
         generation: s.generation + 1,
+        fx: null,
       }));
     },
 
@@ -197,6 +227,7 @@ export const useGame = create<GameStore>()((set, get) => {
         toasts: [],
         ruleGlow: {},
         generation: s.generation + 1,
+        fx: null,
       })),
 
     dispatch: (action) => {

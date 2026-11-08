@@ -6,6 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useGame } from '../../store/gameStore';
 import {
   addablePositions,
   boardBounds,
@@ -81,6 +82,7 @@ export function Board({
   onPlaceholderClick,
 }: Props) {
   const { t } = useTranslation();
+  const fx = useGame((s) => s.fx);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ scale: 1, x: 0, y: 0 });
   const [hover, setHover] = useState<{ key: TileKey; x: number; y: number } | null>(null);
@@ -169,6 +171,18 @@ export function Board({
 
   const hoverInfo = hover ? state.tiles[hover.key] : undefined;
   const hoverFigures = hoverInfo ? (byTile.get(hover?.key ?? '') ?? []) : [];
+
+  /** Animation class of a figure for the last engine step. */
+  const fxClass = (id: string): string =>
+    !fx
+      ? ''
+      : fx.spawned.includes(id)
+        ? 'fx-spawn'
+        : fx.hit.includes(id)
+          ? 'fx-hit'
+          : fx.healed.includes(id)
+            ? 'fx-heal'
+            : '';
 
   return (
     <div
@@ -261,6 +275,17 @@ export function Board({
                 }
                 aria-label={`${t('game.tile', { label })}${occupants.length ? ': ' + occupants.map((f) => state.participants[f.id]?.name ?? f.id).join(', ') : ''}`}
               >
+                {(fx?.tilesAdded.includes(key) || fx?.tilesChanged.includes(key)) && (
+                  <rect
+                    key={`fx-${fx.id}`}
+                    className={fx.tilesAdded.includes(key) ? 'tile-fx fx-pop' : 'tile-fx fx-change'}
+                    x={-4}
+                    y={-4}
+                    width={TILE + 8}
+                    height={TILE + 8}
+                    rx={16}
+                  />
+                )}
                 <rect className="tile-shadow" x={0} y={5} width={TILE} height={TILE} rx={12} />
                 <rect
                   className={`tile-face${texture ? ' has-texture' : ''}`}
@@ -350,32 +375,37 @@ export function Board({
                   pointerEvents="none"
                 >
                   {isCurrent && <circle r={r + 6} className="token-ring" />}
-                  <circle
-                    r={r}
-                    fill={p?.avatar.image ? `url(#img-${fig.id})` : (p?.avatar.color ?? '#999')}
-                    className="token-body"
-                  />
-                  {!p?.avatar.image && (
-                    <text
-                      className="token-text"
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fontSize={r * 0.75}
-                    >
-                      {fig.kind === 'npc'
-                        ? (state.npcTypes.find((n) => n.id === fig.npcTypeId)?.symbol ?? 'N')
-                        : initials(p?.name ?? '?')}
-                    </text>
-                  )}
-                  {fig.kind === 'boss' && (
-                    <path
-                      d={`M${-r * 0.55} ${-r - 2} l0 ${-r * 0.55} l${r * 0.27} ${r * 0.3} l${r * 0.28} ${-r * 0.42} l${r * 0.28} ${r * 0.42} l${r * 0.27} ${-r * 0.3} l0 ${r * 0.55} z`}
-                      fill="#FFC83D"
-                      stroke="#2B1A4A"
-                      strokeWidth={2}
-                      strokeLinejoin="round"
+                  <g
+                    key={`fx-${fxClass(fig.id) ? (fx?.id ?? 0) : 0}`}
+                    className={`token-inner ${fxClass(fig.id)}`}
+                  >
+                    <circle
+                      r={r}
+                      fill={p?.avatar.image ? `url(#img-${fig.id})` : (p?.avatar.color ?? '#999')}
+                      className="token-body"
                     />
-                  )}
+                    {!p?.avatar.image && (
+                      <text
+                        className="token-text"
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fontSize={r * 0.75}
+                      >
+                        {fig.kind === 'npc'
+                          ? (state.npcTypes.find((n) => n.id === fig.npcTypeId)?.symbol ?? 'N')
+                          : initials(p?.name ?? '?')}
+                      </text>
+                    )}
+                    {fig.kind === 'boss' && (
+                      <path
+                        d={`M${-r * 0.55} ${-r - 2} l0 ${-r * 0.55} l${r * 0.27} ${r * 0.3} l${r * 0.28} ${-r * 0.42} l${r * 0.28} ${r * 0.42} l${r * 0.27} ${-r * 0.3} l0 ${r * 0.55} z`}
+                        fill="#FFC83D"
+                        stroke="#2B1A4A"
+                        strokeWidth={2}
+                        strokeLinejoin="round"
+                      />
+                    )}
+                  </g>
                 </g>
               );
             });

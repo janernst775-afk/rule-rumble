@@ -249,6 +249,8 @@ export interface GameState {
   /** NACH n RUNDEN blocks waiting for their round. */
   delayed: DelayedCode[];
   rules: ActiveRule[];
+  /** Rules that left the game (overflow, duration, vote), for the rule album (v0.8). */
+  pastRules: ActiveRule[];
   pendingVote: PendingVote | null;
   /** Rule damage taken per figure this round (attacks do not count). */
   ruleDamage: Record<FigureId, number>;

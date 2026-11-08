@@ -135,6 +135,7 @@ export function createGame(setup: GameSetup): { state: GameState; events: GameEv
     functions: [],
     delayed: [],
     rules: [],
+    pastRules: [],
     pendingVote: null,
     ruleDamage: {},
     spawnsThisRound: 0,

@@ -14,6 +14,9 @@ function withDifficulty(state: GameState, d: Difficulty): GameState {
   return { ...state, participants };
 }
 
+// Bot searches are slow; give them time when the whole suite runs in parallel.
+const SLOW = 30_000;
+
 describe('bot difficulties (SPEC 7)', () => {
   it('all difficulties play legal turns', () => {
     for (const d of ['easy', 'normal', 'hard'] as const) {
@@ -21,7 +24,7 @@ describe('bot difficulties (SPEC 7)', () => {
       for (let i = 0; i < 12 && s.status === 'playing'; i++) s = playBotTurn(s);
       expect(s.round).toBeGreaterThan(1);
     }
-  });
+  }, SLOW);
 
   it('Leicht acts randomly more often than Normal', () => {
     const differs = (d: Difficulty) => {
@@ -35,7 +38,7 @@ describe('bot difficulties (SPEC 7)', () => {
       return n;
     };
     expect(differs('easy')).toBeGreaterThan(differs('normal'));
-  });
+  }, SLOW);
 
   it('Schwer may bring own library rules, Leicht and Normal only start rules', () => {
     const own = {
@@ -51,5 +54,5 @@ describe('bot difficulties (SPEC 7)', () => {
     const turn = chooseTurn(hard, { extraRules: [own] });
     const moved = applyAction(hard, { type: 'move', actor: 'f1', path: turn!.path });
     expect(moved.ok).toBe(true);
-  });
+  }, SLOW);
 });

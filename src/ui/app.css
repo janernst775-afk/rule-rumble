@@ -3156,3 +3156,189 @@
   justify-content: space-between;
   gap: 12px;
 }
+
+/* ---------- Board animations (v0.8) ---------- */
+
+.token-inner {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.token-inner.fx-hit {
+  animation: fx-hit 0.45s ease-out;
+}
+
+.token-inner.fx-spawn {
+  animation: fx-spawn 0.4s cubic-bezier(0.3, 1.6, 0.6, 1);
+}
+
+.token-inner.fx-heal {
+  animation: fx-heal 0.6s ease-out;
+}
+
+@keyframes fx-hit {
+  0% {
+    transform: translateX(0);
+    filter: brightness(1.8) saturate(2) hue-rotate(-30deg);
+  }
+  20% {
+    transform: translateX(-5px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  100% {
+    transform: translateX(0);
+    filter: none;
+  }
+}
+
+@keyframes fx-spawn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fx-heal {
+  0% {
+    filter: drop-shadow(0 0 0 #34c77b);
+  }
+  40% {
+    filter: drop-shadow(0 0 8px #34c77b);
+  }
+  100% {
+    filter: none;
+  }
+}
+
+.tile-fx {
+  pointer-events: none;
+  fill: none;
+  stroke-width: 4;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.tile-fx.fx-pop {
+  stroke: var(--primary);
+  animation: fx-pop 0.5s ease-out forwards;
+}
+
+.tile-fx.fx-change {
+  stroke: #fff;
+  animation: fx-pop 0.6s ease-out forwards;
+}
+
+@keyframes fx-pop {
+  from {
+    transform: scale(0.7);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .token-inner,
+  .tile-fx {
+    animation: none !important;
+  }
+
+  .tile-fx {
+    display: none;
+  }
+}
+
+/* ---------- Rule album (v0.8) ---------- */
+
+.rule-album {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.album-card {
+  padding: 12px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  background: var(--lilac);
+  box-shadow: 0 4px 0 var(--ink);
+}
+
+.album-card.is-past {
+  opacity: 0.75;
+  background: #fff;
+}
+
+.album-card p {
+  margin: 6px 0 0;
+}
+
+.album-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* ---------- Tutorial (v0.8) ---------- */
+
+.tutorial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.tutorial-icon {
+  font-size: 56px;
+  line-height: 1;
+}
+
+.tutorial h3 {
+  margin: 0;
+}
+
+.tutorial p {
+  min-height: 4.8em;
+  margin: 0;
+}
+
+.tutorial-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.tutorial-dot {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+}
+
+.tutorial-dot[aria-current='step'] {
+  background: var(--primary);
+}
+
+.tutorial .dialog-actions {
+  align-self: stretch;
+  justify-content: space-between;
+}

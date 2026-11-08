@@ -68,6 +68,7 @@ function removeRule(bus: Bus, ruleId: string, reason: 'overflow' | 'expired' | '
   const rule = state.rules.find((r) => r.id === ruleId);
   if (!rule) return;
   state.rules = state.rules.filter((r) => r.id !== ruleId);
+  state.pastRules = [...(state.pastRules ?? []), rule];
   log(state, 'log.ruleRemoved', { rule: rule.def.ast.name });
   emit(bus, { type: 'ruleRemoved', rule: rule.id, name: rule.def.ast.name, reason });
 }
