@@ -4,6 +4,7 @@ import { playSfx } from '../../audio/audio';
 import { HERO_COLORS, BOSS_COLOR } from '../../lobby/lobby';
 import { useApp } from '../../store/appStore';
 import { useProfile } from '../../store/profileStore';
+import { TutorialDialog } from '../components/TutorialDialog';
 import { MuteButton } from '../components/AudioControls';
 import { Avatar } from '../components/Avatar';
 import { ACCEPTED_TYPES, checkImageFile } from '../avatarUtils';
@@ -21,7 +22,7 @@ export function StartScreen() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [tutorial, setTutorial] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
 
   const displayName = name.trim() || t('lobby.roles.hero');
@@ -143,22 +144,13 @@ export function StartScreen() {
           </div>
           <p className="hint center">{t('start.joinSoon')}</p>
           <div className="start-secondary">
-            <button
-              type="button"
-              className="btn btn-soft"
-              onClick={() => setNotice(t('start.howToSoon'))}
-            >
+            <button type="button" className="btn btn-soft" onClick={() => setTutorial(true)}>
               {t('start.howTo')}
             </button>
             <button type="button" className="btn btn-soft" onClick={() => setScreen('library')}>
               {t('start.library')}
             </button>
           </div>
-          {notice && (
-            <p className="hint center" role="status">
-              {notice}
-            </p>
-          )}
         </div>
       </section>
 
@@ -179,6 +171,7 @@ export function StartScreen() {
         />
       )}
       {prefsOpen && <PrefsDialog onClose={() => setPrefsOpen(false)} />}
+      {tutorial && <TutorialDialog onClose={() => setTutorial(false)} />}
     </main>
   );
 }

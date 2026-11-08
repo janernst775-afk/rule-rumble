@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import de from '../../locales/de.json';
+import en from '../../locales/en.json';
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -31,6 +32,16 @@ describe('i18n', () => {
       }
     }
     expect(missing).toEqual([]);
+  });
+
+  it('the English translation is complete (v0.8)', () => {
+    const keys = (obj: unknown, prefix = ''): string[] =>
+      Object.entries(obj as Record<string, unknown>).flatMap(([k, v]) =>
+        v !== null && typeof v === 'object' ? keys(v, `${prefix}${k}.`) : [`${prefix}${k}`],
+      );
+    const missing = keys(de).filter((k) => !has(en, k));
+    expect(missing).toEqual([]);
+    expect(keys(en).filter((k) => !has(de, k))).toEqual([]);
   });
 
   it('engine log keys exist', () => {

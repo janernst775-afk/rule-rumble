@@ -50,9 +50,7 @@
     "join": "Beitreten",
     "joinSoon": "Online-Beitritt kommt bald – jetzt mit Bots spielen",
     "howTo": "So geht's",
-    "howToSoon": "Das Tutorial kommt in v0.8.",
     "library": "Bibliothek",
-    "librarySoon": "Die Bibliothek kommt in v0.3.",
     "uploadAvatar": "Profilbild hochladen",
     "pickColor": "Farbe {{color}} wählen",
     "settings": "Einstellungen"
@@ -123,7 +121,7 @@
     },
     "quick": {
       "name": "Schnell",
-      "desc": "Kleines Brett, 20 s Zugzeit, Boss mit weniger Leben."
+      "desc": "Kleines Brett, 20 s Zugzeit, Boss mit weniger Leben, Rad 70 %."
     },
     "builder": {
       "name": "Baumeister",
@@ -241,7 +239,8 @@
       "lava": "Lava",
       "eis": "Eis",
       "heilquelle": "Heilquelle",
-      "falle": "Falle"
+      "falle": "Falle",
+      "wasser": "Wasser"
     },
     "tileInfoRules": "Wirkt hier: –",
     "dead": "ausgeschieden",
@@ -358,9 +357,14 @@
       "tilesAdded": "Felder angelegt",
       "tilesRemoved": "Felder entfernt"
     },
-    "album": "Regel-Album kommt in v0.8.",
     "again": "Nochmal",
-    "toStart": "Zum Startbildschirm"
+    "toStart": "Zum Startbildschirm",
+    "albumTitle": "Regel-Album ({{count}})",
+    "albumEmpty": "In diesem Spiel kam keine Regel dazu.",
+    "albumActive": "bis zum Schluss",
+    "albumGone": "vorher entfernt",
+    "albumMeta_one": "von {{author}} · ab Runde {{round}} · {{count}}-mal gefeuert",
+    "albumMeta_other": "von {{author}} · ab Runde {{round}} · {{count}}-mal gefeuert"
   },
   "tileDialog": {
     "title": "Neues Feld",
@@ -1139,5 +1143,41 @@
     "sounds": "Sounds",
     "newSound": "+ Sound",
     "noSounds": "Noch keine."
+  },
+  "tutorial": {
+    "title": "So geht's",
+    "progress": "Schritte",
+    "goTo": "Schritt {{n}} von {{total}}",
+    "back": "Zurück",
+    "next": "Weiter",
+    "done": "Los geht's!",
+    "goal": {
+      "title": "Helden gegen Boss",
+      "text": "Bis zu vier Helden spielen gegen einen Boss. Fällt der Boss, gewinnen die Helden – fallen alle Helden, gewinnt der Boss. Spielt einer allein, übernehmen Bots die anderen Plätze."
+    },
+    "turn": {
+      "title": "Dein Zug",
+      "text": "Erst bewegst du dich (Klick auf ein Feld oder Pfeiltasten, dann Enter). Danach wählst du eine Aktion: Angreifen, Feld anlegen, Feld entfernen, Neue Regel oder Passen."
+    },
+    "attack": {
+      "title": "Angriff und Rad",
+      "text": "Stehst du mit einer anderen Figur auf einem Feld, kannst du angreifen. Das Glücksrad entscheidet: Ein Treffer kostet 1 Leben, ein Schild fängt ihn ab."
+    },
+    "board": {
+      "title": "Das Brett verändern",
+      "text": "Das Brett wächst und schrumpft mit euch. Neue Felder schaffen Fluchtwege, entfernte Felder trennen Gegner – zusammenhängend bleibt es immer. Eigene Texturen malst du beim Anlegen."
+    },
+    "rules": {
+      "title": "Regeln erfinden",
+      "text": "Mit „Neue Regel“ baust du Regeln aus Bausteinen oder schreibst sie als Text: WENN etwas passiert, UND Bedingungen stimmen, DANN passieren Effekte. Regeln gelten für alle gleich und wirken erst ab der nächsten Runde."
+    },
+    "workshop": {
+      "title": "Effekt-Werkstatt",
+      "text": "Über die Bibliothek erreichst du die Werkstatt: Dort baust du eigene Effekte aus Bausteinen oder Profi-Code, zeichnest NPC-Typen und nimmst Sounds auf. Alles lässt sich als Regel-Paket teilen."
+    },
+    "keys": {
+      "title": "Tastenkürzel",
+      "text": "Pfeiltasten bewegen, 1–5 wählen Aktionen, R klappt die Regeln ein und aus, die Leertaste dreht das Rad. Viel Spaß!"
+    }
   }
 }
